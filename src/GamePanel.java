@@ -32,6 +32,21 @@ import java.util.ArrayList;
     * rotation
  */
 
+/*
+    * How the board is rendered:
+     * The board is made up of a grid of tiles
+     * each tile contains a block state and a sprite
+     * every frame, each tile is drawn
+     * to add a piece to the board, we set the block state of the tile to FILLED using addPieceToBoard()
+     * to remove a piece from the board, we set the block state of the tile to EMPTY using removePieceFromBoard()
+
+
+     * if this rendering method is too slow, we can try to only render the tiles that are FILLED
+     * and draw a background image once
+ */
+
+
+
 public class GamePanel extends JPanel implements Runnable, KeyListener {
     static int TILE_SIZE = 20;
     static int BOARD_X = 10;
@@ -49,9 +64,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
 
     // TODO these are temporary variables
-    // TODO but this is how we will move the piece
-    int tempX = BOARD_X;
-    int tempY = BOARD_Y;
+    // but this is how we will move the piece
+    int tempX = 0;
+    int tempY = 0;
     int i = 0;
     int j = 0;
 
@@ -87,8 +102,15 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
     private void initializeBoard() {
-        // TODO initialize the game board
+        for (int i = 0; i < BOARD_HEIGHT; i++) {
+            ArrayList<Tile> row = new ArrayList<>();
+            for (int j = 0; j < BOARD_WIDTH; j++) {
+                row.add(new Tile(BlockState.EMPTY, Shape.EMPTY));
+            }
+            gameBoard.add(row);
+        }
     }
+
 
     @Override
     public void run() {
@@ -102,7 +124,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 // moves every 5 frames
                 j++;
                 if (j == 5) {
-                    tempY += TILE_SIZE;
+                    tempY += 1;
                     j = 0;
                     // reset i to 0 so that it stops for a moment
                     i = 0;
@@ -123,11 +145,23 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             } catch (InterruptedException _) {
             }
             if (i == 50) {
-                tempY += TILE_SIZE;
+                tempY += 1;
                 i = 0;
             }
             i++;
         }
+    }
+
+    // renders every tile in the game board
+    private void drawBoard(Graphics g) {
+        for (int row = 0; row < gameBoard.size(); row++) {
+            for (int column = 0; column < gameBoard.get(row).size(); column++) {
+                gameBoard.get(row).get(column).setX(BOARD_X+1 + column*TILE_SIZE);
+                gameBoard.get(row).get(column).setY(BOARD_Y+1 + row*TILE_SIZE);
+                gameBoard.get(row).get(column).draw(g);
+            }
+        }
+
     }
 
     private void calculateDelta() {
@@ -136,16 +170,34 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         fps = ((long) 1e9 )/ delta;
     }
 
+
+    // set a tile to EMPTY
+    public void deleteTileOnBoard(int x, int y) {
+        gameBoard.get(y).set(x, new Tile(BlockState.EMPTY, Shape.EMPTY));
+    }
+    public void setTileOnBoard(Tile tile, int x, int y) {
+        gameBoard.get(y).set(x, tile);
+    }
+
+    // FIXME temporary code to test the piece
+    Tile testTile = new Tile(BlockState.FILLED_SELECTED, Shape.Z);
+
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
         g.setColor(Color.WHITE);
         g.drawString("FPS: " + fps, 10, 10);
         // +2 to draw a border around the board
-        g.drawRect(BOARD_X-1, BOARD_Y-1, TILE_SIZE*BOARD_WIDTH+2, TILE_SIZE*BOARD_HEIGHT+2);
+        g.fillRect(BOARD_X-1, BOARD_Y-1, TILE_SIZE*BOARD_WIDTH+2+1, TILE_SIZE*BOARD_HEIGHT+2+1);
 
-        g.setColor(Color.RED);
-        g.drawRect(tempX, tempY, TILE_SIZE, TILE_SIZE);
+        drawBoard(g);
+
+        // FIXME temporary code to test the piece
+        setTileOnBoard(testTile, tempX, tempY);
+        if (tempY > 0) {
+            deleteTileOnBoard(tempX, tempY-1);
+        }
+
     }
 
     /**
