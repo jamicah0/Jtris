@@ -1,7 +1,5 @@
 public enum BlockState {
     EMPTY,
-    EMPTY_SELECTED,
-    EMPTY_OUTSIDE,
     FILLED_SELECTED,
     FILLED_LOCKED
 }

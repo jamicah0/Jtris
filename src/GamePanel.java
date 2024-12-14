@@ -2,7 +2,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.util.ArrayList;
 
 /*
     * * * * *
@@ -52,10 +51,12 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     static int BOARD_X = 10;
     static int BOARD_Y = 24;
     static int BOARD_WIDTH = 10;
-    static int BOARD_HEIGHT = 24;
+    static int BOARD_HEIGHT = 23;
+
+    Piece currentPiece = new Piece(Shape.randomShape());
 
     // game board
-    ArrayList<ArrayList<Tile>> gameBoard = new ArrayList<>();
+    Tile[][] gameBoard = new Tile[BOARD_HEIGHT][BOARD_WIDTH];
 
     boolean up = false;
     boolean down = false;
@@ -82,16 +83,26 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
     public GamePanel(int width, int height) {
+        initialize();
         this.setPreferredSize(new Dimension(width, height));
         this.setBackground(Color.black);
         JFrame frame = new JFrame("JTris");
-        frame.setLocation(100, 100);
+
+        // center of the screen (relative to the screen size)
+        frame.setLocation(
+                Toolkit.getDefaultToolkit()
+                        .getScreenSize()
+                        .width/2 - width/2,
+                Toolkit.getDefaultToolkit()
+                        .getScreenSize()
+                        .height/2 - height/2
+        );
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.addKeyListener(this);
         frame.add(this);
         frame.pack();
         frame.setVisible(true);
-        initialize();
+
     }
 
     private void initialize() {
@@ -102,13 +113,12 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
     private void initializeBoard() {
-        for (int i = 0; i < BOARD_HEIGHT; i++) {
-            ArrayList<Tile> row = new ArrayList<>();
-            for (int j = 0; j < BOARD_WIDTH; j++) {
-                row.add(new Tile(BlockState.EMPTY, Shape.EMPTY));
+        for (int row = 0; row < BOARD_HEIGHT; row++) {
+            for (int column = 0; column < BOARD_WIDTH; column++) {
+                gameBoard[row][column] = new Tile(BlockState.EMPTY, Shape.EMPTY);
             }
-            gameBoard.add(row);
         }
+        currentPiece.insertPieceIntoBoard(gameBoard);
     }
 
 
@@ -117,18 +127,27 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         while (isGameRunning) {
             calculateDelta();
             repaint();
+
+            if (currentPiece.isLocked) {
+                currentPiece = new Piece(Shape.randomShape());
+                currentPiece.insertPieceIntoBoard(gameBoard);
+            }
+
             if (up) {
 
             }
             if (down) {
+
                 // moves every 5 frames
                 j++;
-                if (j == 5) {
+                if (j == 6) {
                     tempY += 1;
                     j = 0;
+                    currentPiece.moveDown(gameBoard);
                     // reset i to 0 so that it stops for a moment
                     i = 0;
                 }
+
             }
             if (left) {
 
@@ -141,12 +160,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
             try {
                 Thread.sleep(10);
-
-            } catch (InterruptedException _) {
-            }
+            } catch (InterruptedException _) {}
             if (i == 50) {
+                /*
                 tempY += 1;
+                 */
                 i = 0;
+
+                currentPiece.moveDown(gameBoard);
             }
             i++;
         }
@@ -154,11 +175,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     // renders every tile in the game board
     private void drawBoard(Graphics g) {
-        for (int row = 0; row < gameBoard.size(); row++) {
-            for (int column = 0; column < gameBoard.get(row).size(); column++) {
-                gameBoard.get(row).get(column).setX(BOARD_X+1 + column*TILE_SIZE);
-                gameBoard.get(row).get(column).setY(BOARD_Y+1 + row*TILE_SIZE);
-                gameBoard.get(row).get(column).draw(g);
+        for (int row = 0; row < gameBoard.length; row++) {
+            for (int column = 0; column < gameBoard[row].length; column++) {
+                if (row < 3 && gameBoard[row][column].state == BlockState.EMPTY)  {
+                    continue;
+                }
+                gameBoard[row][column].setX(BOARD_X+1 + column*TILE_SIZE);
+                gameBoard[row][column].setY(BOARD_Y+1 + row*TILE_SIZE);
+                gameBoard[row][column].draw(g);
             }
         }
 
@@ -171,33 +195,16 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
 
-    // set a tile to EMPTY
-    public void deleteTileOnBoard(int x, int y) {
-        gameBoard.get(y).set(x, new Tile(BlockState.EMPTY, Shape.EMPTY));
-    }
-    public void setTileOnBoard(Tile tile, int x, int y) {
-        gameBoard.get(y).set(x, tile);
-    }
-
-    // FIXME temporary code to test the piece
-    Tile testTile = new Tile(BlockState.FILLED_SELECTED, Shape.Z);
-
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
         g.setColor(Color.WHITE);
         g.drawString("FPS: " + fps, 10, 10);
+        g.drawString("i:" + i, 10, 20);
         // +2 to draw a border around the board
-        g.fillRect(BOARD_X-1, BOARD_Y-1, TILE_SIZE*BOARD_WIDTH+2+1, TILE_SIZE*BOARD_HEIGHT+2+1);
+        g.drawRect(BOARD_X-1, BOARD_Y-1, TILE_SIZE*BOARD_WIDTH+2+1, TILE_SIZE*BOARD_HEIGHT+2+1);
 
         drawBoard(g);
-
-        // FIXME temporary code to test the piece
-        setTileOnBoard(testTile, tempX, tempY);
-        if (tempY > 0) {
-            deleteTileOnBoard(tempX, tempY-1);
-        }
-
     }
 
     /**

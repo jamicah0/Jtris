@@ -2,7 +2,6 @@ import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 
-// TODO finish this class
 public abstract class Sprite extends Rectangle2D.Double implements Drawable {
     long delay;
 

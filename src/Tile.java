@@ -30,6 +30,7 @@ public class Tile extends Rectangle2D.Double implements Drawable {
 
         // Set the sprite based on the texture
         switch (texture) {
+            // TODO put every sprite into one single image and use a sprite sheet
             case I -> this.sprite = getImage(spritesPath + "cyan_tile.png");
             case J -> this.sprite = getImage(spritesPath + "blue_tile.png");
             case L -> this.sprite = getImage(spritesPath + "orange_tile.png");
@@ -49,7 +50,7 @@ public class Tile extends Rectangle2D.Double implements Drawable {
             assert url != null;
             img = ImageIO.read(new File(path));
         } catch (Exception e) {
-            System.out.println("Error loading sprites: " + e.getStackTrace());
+            e.printStackTrace();
         }
         return img;
     }
