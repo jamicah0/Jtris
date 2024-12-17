@@ -1,6 +1,5 @@
 import java.util.Random;
 
-// TODO 7 bag randomizer
 
 public enum Shape {
     I,
