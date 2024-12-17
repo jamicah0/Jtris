@@ -67,6 +67,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     boolean down = false;
     boolean left = false;
     boolean right = false;
+    boolean ctrl = false;
 
     // gravity
     int frameCounterAutomatic = 0;
@@ -170,52 +171,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 }
             }
 
-            if (up) {
-
-            }
-
-            if (down) {
-
-                // moves every 5 frames
-                frameCounterMoveDown++;
-                if (frameCounterMoveDown == DOWNWARDS_SPEED) {
-                    frameCounterMoveDown = 0;
-                    currentPiece.moveDown(gameBoard);
-                    repaint();
-                    // reset i to 0 so that it stops for a moment
-                    frameCounterAutomatic = 0;
-                }
-
-            } else {
-                frameCounterMoveDown = 0;
-            }
-
-            // TODO: Make separate frameCounters for every movement
-            if (left && !right) {
-                frameCounterMoveLeft++;
-                if (frameCounterMoveLeft == ARR) {
-                    frameCounterMoveLeft = 0;
-                    currentPiece.moveLeft(gameBoard);
-                    repaint();
-                    // reset i to 0 so that it stops for a moment
-                }
-                repaint();
-            } else {
-                frameCounterMoveLeft = 0;
-            }
-
-            if (right && !left) {
-                frameCounterMoveRight++;
-                if (frameCounterMoveRight == ARR) {
-                    frameCounterMoveRight = 0;
-                    currentPiece.moveRight(gameBoard);
-                    repaint();
-
-                }
-                repaint();
-            } else {
-                frameCounterMoveRight = 0;
-            }
+            checkKeys();
 
             if (frameCounterAutomatic == GRAVITY) {
                 frameCounterAutomatic = 0;
@@ -228,6 +184,64 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 Thread.sleep(10);
             } catch (InterruptedException _) {}
 
+        }
+    }
+
+    private void checkKeys() {
+        // rotation
+
+        if (up) {
+            currentPiece.rotateCounterClockwise(gameBoard);
+        }
+        if (ctrl) {
+            currentPiece.rotateClockwise(gameBoard);
+        }
+
+
+
+        // vertical & horizontal movement
+
+        if (down) {
+
+            // moves every 5 frames
+            frameCounterMoveDown++;
+            if (frameCounterMoveDown == DOWNWARDS_SPEED) {
+                frameCounterMoveDown = 0;
+                currentPiece.moveDown(gameBoard);
+                repaint();
+                // reset i to 0 so that it stops for a moment
+                frameCounterAutomatic = 0;
+            }
+
+        } else {
+            frameCounterMoveDown = 0;
+        }
+
+        if (left && !right) {
+            frameCounterMoveLeft++;
+            // TODO: Delayed auto shift
+            if (frameCounterMoveLeft == ARR) {
+                frameCounterMoveLeft = 0;
+                currentPiece.moveLeft(gameBoard);
+                repaint();
+                // reset i to 0 so that it stops for a moment
+            }
+            repaint();
+        } else {
+            frameCounterMoveLeft = 0;
+        }
+
+        if (right && !left) {
+            frameCounterMoveRight++;
+            if (frameCounterMoveRight == ARR) {
+                frameCounterMoveRight = 0;
+                currentPiece.moveRight(gameBoard);
+                repaint();
+
+            }
+            repaint();
+        } else {
+            frameCounterMoveRight = 0;
         }
     }
 
@@ -286,17 +300,12 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
      */
     @Override
     public void keyPressed(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_UP) {
-            up = true;
-        }
-        if (e.getKeyCode() == KeyEvent.VK_DOWN) {
-            down = true;
-        }
-        if (e.getKeyCode() == KeyEvent.VK_LEFT) {
-            left = true;
-        }
-        if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
-            right = true;
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_UP -> up = true;
+            case KeyEvent.VK_DOWN -> down = true;
+            case KeyEvent.VK_LEFT -> left = true;
+            case KeyEvent.VK_RIGHT -> right = true;
+            case KeyEvent.VK_CONTROL -> ctrl = true;
         }
     }
 
@@ -309,17 +318,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
      */
     @Override
     public void keyReleased(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_UP) {
-            up = false;
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_UP -> up = false;
+            case KeyEvent.VK_DOWN -> down = false;
+            case KeyEvent.VK_LEFT -> left = false;
+            case KeyEvent.VK_RIGHT -> right = false;
+            case KeyEvent.VK_CONTROL -> ctrl = false;
         }
-        if (e.getKeyCode() == KeyEvent.VK_DOWN) {
-            down = false;
-        }
-        if (e.getKeyCode() == KeyEvent.VK_LEFT) {
-            left = false;
-        }
-        if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
-            right = false;
-        }
+
+
     }
 }

@@ -87,14 +87,6 @@ public class Piece {
 
     }
 
-    public void rotateClockwise() {
-
-    }
-
-    public void rotateCounterClockwise() {
-
-    }
-
     // 2d integer array to 2d Tile array
     // 0 -> EMPTY; 1 -> FILLED_SELECTED
     private Tile[][] convertToTiles(int[][] initial, Shape shape) {
@@ -239,5 +231,20 @@ public class Piece {
 
     }
 
+
+
+
+    public void rotateClockwise(Tile[][] gameBoard) {
+        // rotate array
+        Tile[][] rotated = new Tile[tiles[0].length][tiles.length];
+
+
+
+
+    }
+
+    public void rotateCounterClockwise(Tile[][] gameBoard) {
+
+    }
 
 }
