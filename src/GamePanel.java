@@ -122,9 +122,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         Shape[] shapeBag = Shape.values();
         sevenBag = new Shape[7];
 
-        for (int k = 0; k < 7; k++) {
-            sevenBag[k] = shapeBag[k];
-        }
+        System.arraycopy(shapeBag, 0, sevenBag, 0, 7);
         shuffleBag();
 
         printCurrentBag();

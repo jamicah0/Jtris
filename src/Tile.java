@@ -50,7 +50,7 @@ public class Tile extends Rectangle2D.Double implements Drawable {
             assert url != null;
             img = ImageIO.read(new File(path));
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Image couldn't be read! Path: " + path);
         }
         return img;
     }

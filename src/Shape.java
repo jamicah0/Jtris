@@ -12,9 +12,4 @@ public enum Shape {
     EMPTY;
 
     private static final Random PRNG = new Random();
-
-    public static Shape randomShape() {
-        Shape[] shapes = values();
-        return shapes[PRNG.nextInt(shapes.length-1)];
-    }
 }

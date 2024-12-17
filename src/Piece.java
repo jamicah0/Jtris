@@ -117,9 +117,6 @@ public class Piece {
     public void deleteTileOnBoard(int x, int y, Tile[][] gameBoard) {
         gameBoard[y][x] = new Tile(BlockState.EMPTY, Shape.EMPTY);
     }
-    public void setTileOnBoard(Tile tile, int x, int y, Tile[][] gameBoard) {
-        gameBoard[y][x] = tile;
-    }
 
     public void lockPiece() {
         for (Tile[] tile : tiles) {
