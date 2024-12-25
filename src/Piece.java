@@ -6,41 +6,30 @@
 public class Piece {
     Tile[][] tiles;
     int x, y;
+    int rotationIndex;
     boolean isLocked;
+    Shape shape;
 
     public Piece(Shape shape) {
+        this.shape = shape;
+        rotationIndex = 0;
         isLocked = false;
         // initialize the piece to the selected shape
         // and set the initial position
         switch (shape) {
             case I -> {
-                int[][] initialI = {
-                        {0, 0, 0, 0},
-                        {1, 1, 1, 1},
-                        {0, 0, 0, 0},
-                        {0, 0, 0, 0}
-                };
-                tiles = convertToTiles(initialI, shape);
+                tiles = convertToTiles(RotationSRS.IRotation[0], shape);
                 x = 3;
                 y = 0;
             }
             case J -> {
-                int[][] initialJ = {
-                        {1, 0, 0},
-                        {1, 1, 1},
-                        {0, 0, 0}
-                };
-                tiles = convertToTiles(initialJ, shape);
+
+                tiles = convertToTiles(RotationSRS.JRotation[0], shape);
                 x = 3;
                 y = 0;
             }
             case L -> {
-                int[][] initialL = {
-                        {0, 0, 1},
-                        {1, 1, 1},
-                        {0, 0, 0}
-                };
-                tiles = convertToTiles(initialL, shape);
+                tiles = convertToTiles(RotationSRS.LRotation[0], shape);
                 x = 3;
                 y = 0;
             }
@@ -54,32 +43,17 @@ public class Piece {
                 y = 0;
             }
             case S -> {
-                int[][] initialS = {
-                        {0, 1, 1},
-                        {1, 1, 0},
-                        {0, 0, 0}
-                };
-                tiles = convertToTiles(initialS, shape);
+                tiles = convertToTiles(RotationSRS.SRotation[0], shape);
                 x = 3;
                 y = 0;
             }
             case T -> {
-                int[][] initialT = {
-                        {0, 1, 0},
-                        {1, 1, 1},
-                        {0, 0, 0}
-                };
-                tiles = convertToTiles(initialT, shape);
+                tiles = convertToTiles(RotationSRS.TRotation[0], shape);
                 x = 3;
                 y = 0;
             }
             case Z -> {
-                int[][] initialZ = {
-                        {1, 1, 0},
-                        {0, 1, 1},
-                        {0, 0, 0}
-                };
-                tiles = convertToTiles(initialZ, shape);
+                tiles = convertToTiles(RotationSRS.ZRotation[0], shape);
                 x = 3;
                 y = 0;
             }
@@ -229,19 +203,99 @@ public class Piece {
     }
 
 
-
-
-    public void rotateClockwise(Tile[][] gameBoard) {
-        // rotate array
-        Tile[][] rotated = new Tile[tiles[0].length][tiles.length];
-
-
-
-
+    private boolean canRotate(Tile[][] gameBoard, int[][] nextRotation) {
+        for (int i = 0; i < tiles.length; i++) {
+            for (int j = 0; j < tiles[0].length; j++) {
+                if (nextRotation[i][j] == 1) {
+                    int newX = x + j;
+                    int newY = y + i;
+                    if (isNotOutOfBounds(gameBoard, newX, newY)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
-    public void rotateCounterClockwise(Tile[][] gameBoard) {
+    private static boolean isNotOutOfBounds(Tile[][] gameBoard, int newX, int newY) {
+        return newX < 0 || newX >= gameBoard[0].length || newY < 0 || newY >= gameBoard.length || gameBoard[newY][newX].state == BlockState.FILLED_LOCKED;
+    }
 
+    public void rotateClockwise(Tile[][] gameBoard) {
+        if (shape == Shape.O) {
+            return;
+        }
+
+
+
+
+        rotationIndex++;
+
+        if (rotationIndex > 3) {
+            rotationIndex = 0;
+        }
+
+        int[][] nextRotation = RotationSRS.getRotation(shape, rotationIndex);
+
+        if (!canRotate(gameBoard, nextRotation)) {
+            rotationIndex--;
+            return;
+        }
+        
+        // delete the previous piece from the board
+        for (int i = 0; i < tiles.length; i++) {
+            for (int j = 0; j < tiles[0].length; j++) {
+                if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
+                    deleteTileOnBoard(x + j, y + i, gameBoard);
+                }
+            }
+        }
+
+        assert nextRotation != null;
+        tiles = convertToTiles(nextRotation, shape);
+
+
+        insertPieceIntoBoard(gameBoard);
+    }
+
+
+    public void rotateCounterClockwise(Tile[][] gameBoard) {
+        if (shape == Shape.O) {
+            return;
+        }
+
+
+
+        rotationIndex--;
+
+        if (rotationIndex < 0) {
+            rotationIndex = 3;
+        }
+
+        int[][] nextRotation = RotationSRS.getRotation(shape, rotationIndex);
+
+        if (!canRotate(gameBoard, nextRotation)) {
+            rotationIndex++;
+            return;
+        }
+
+
+        // delete the previous piece from the board
+        for (int i = 0; i < tiles.length; i++) {
+            for (int j = 0; j < tiles[0].length; j++) {
+                if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
+                    deleteTileOnBoard(x + j, y + i, gameBoard);
+                }
+            }
+        }
+
+        assert nextRotation != null;
+        tiles = convertToTiles(nextRotation, shape);
+
+
+
+        insertPieceIntoBoard(gameBoard);
     }
 
 }

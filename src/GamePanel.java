@@ -1,7 +1,10 @@
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.image.BufferedImage;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -26,11 +29,14 @@ import java.util.Collections;
     TO-DO:
     * create a game loop    (x)
     * render board          (x)
-    * piece renderer
-    * move piece
+    * piece renderer        (x)
+    * move piece            (x)
     * input handling
-    * collision detection
-    * rotation
+    * collision detection   (x)
+    * rotation              (x)
+    * hold piece
+    * see next pieces
+    * game over
  */
 
 /*
@@ -49,16 +55,21 @@ import java.util.Collections;
 
 
 public class GamePanel extends JPanel implements Runnable, KeyListener {
-    static int TILE_SIZE = 20;
+    static int TILE_SIZE = 30;
     static int BOARD_X = 10;
     static int BOARD_Y = 24;
     static int BOARD_WIDTH = 10;
     static int BOARD_HEIGHT = 23;
+    public static final String SPRITE_SHEET_FILE_PATH = "Sprites\\sprite_sheet.png";
 
     Shape[] sevenBag;
 
+    int score;
+
     int currentBagIndex = 0;
     Piece currentPiece;
+
+    public static BufferedImage[] sprites;
 
     // game board
     Tile[][] gameBoard = new Tile[BOARD_HEIGHT][BOARD_WIDTH];
@@ -117,6 +128,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
     private void initialize() {
+        loadSprites();
+
         initializeBoard();
 
         Shape[] shapeBag = Shape.values();
@@ -132,9 +145,43 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         currentPiece.insertPieceIntoBoard(gameBoard);
         currentBagIndex++;
 
+        score = 0;
+
         last = System.nanoTime();
         Thread t = new Thread(this);
         t.start();
+    }
+
+    private void loadSprites() {
+        BufferedImage spriteSheet;
+
+        URL url = getClass().getClassLoader().getResource(SPRITE_SHEET_FILE_PATH);
+        try {
+            assert url != null;
+            spriteSheet = ImageIO.read(url);
+
+            sprites = new BufferedImage[12];
+
+            // put sprites into an array
+            for (int i = 0; i < 7; i++) {
+                sprites[i] = spriteSheet.getSubimage(
+                        i*GamePanel.TILE_SIZE + i,
+                        0,
+                        GamePanel.TILE_SIZE,
+                        GamePanel.TILE_SIZE
+                );
+            }
+            for (int i = 8; i < 12; i++) {
+                sprites[i] = spriteSheet.getSubimage(
+                        i*GamePanel.TILE_SIZE + i + 2,
+                        0,
+                        GamePanel.TILE_SIZE,
+                        GamePanel.TILE_SIZE
+                );
+            }
+        } catch (Exception e) {
+            System.out.println("Image couldn't be read! Path: " + url);
+        }
     }
 
     private void shuffleBag() {
@@ -185,16 +232,24 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         }
     }
 
+    boolean pressedPrevious = false;
+
     private void checkKeys() {
         // rotation
 
-        if (up) {
-            currentPiece.rotateCounterClockwise(gameBoard);
-        }
-        if (ctrl) {
+        // make sure that the key is only pressed once
+        if (up && !pressedPrevious) {
             currentPiece.rotateClockwise(gameBoard);
+            repaint();
+            pressedPrevious = true;
+        } else if (!up) {
+            pressedPrevious = false;
         }
 
+
+        if (ctrl) {
+            currentPiece.rotateCounterClockwise(gameBoard);
+        }
 
 
         // vertical & horizontal movement
@@ -204,6 +259,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             // moves every 5 frames
             frameCounterMoveDown++;
             if (frameCounterMoveDown == DOWNWARDS_SPEED) {
+                score++;
                 frameCounterMoveDown = 0;
                 currentPiece.moveDown(gameBoard);
                 repaint();
@@ -271,6 +327,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         g.setColor(Color.WHITE);
         g.drawString("FPS: " + fps, 10, 10);
         g.drawString("j:" + frameCounterMoveDown, 10, 20);
+        g.drawString("Score: " + score, TILE_SIZE*BOARD_WIDTH+2+1 + 20,(TILE_SIZE*BOARD_HEIGHT+2+1)/2 );
         // +2 to draw a border around the board
         g.drawRect(BOARD_X-1, BOARD_Y-1, TILE_SIZE*BOARD_WIDTH+2+1, TILE_SIZE*BOARD_HEIGHT+2+1);
 
