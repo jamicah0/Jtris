@@ -3,14 +3,14 @@
    and convert it into a 2d arrayList when adding it into the board
  */
 
-public class Piece {
+public class Tetromino {
     Tile[][] tiles;
     int x, y;
     int rotationIndex;
     boolean isLocked;
     Shape shape;
 
-    public Piece(Shape shape) {
+    public Tetromino(Shape shape) {
         this.shape = shape;
         rotationIndex = 0;
         isLocked = false;
@@ -123,6 +123,16 @@ public class Piece {
 
 
         // delete the previous piece from the board
+        deleteCurrentTetrimino(gameBoard);
+
+        // move the piece down
+        y++;
+
+        // insert the piece into the board
+        insertPieceIntoBoard(gameBoard);
+    }
+
+    public void deleteCurrentTetrimino(Tile[][] gameBoard) {
         for (int i = 0; i < tiles.length; i++) {
             for (int j = 0; j < tiles[0].length; j++) {
                 if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
@@ -130,12 +140,6 @@ public class Piece {
                 }
             }
         }
-
-        // move the piece down
-        y++;
-
-        // insert the piece into the board
-        insertPieceIntoBoard(gameBoard);
     }
 
     public void moveRight(Tile[][] gameBoard) {
@@ -154,13 +158,7 @@ public class Piece {
         }
 
         // delete the previous piece from the board
-        for (int i = 0; i < tiles.length; i++) {
-            for (int j = 0; j < tiles[0].length; j++) {
-                if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    deleteTileOnBoard(x + j, y + i, gameBoard);
-                }
-            }
-        }
+        deleteCurrentTetrimino(gameBoard);
 
         x++;
 
@@ -188,13 +186,7 @@ public class Piece {
         }
 
         // delete the previous piece from the board
-        for (int i = 0; i < tiles.length; i++) {
-            for (int j = 0; j < tiles[0].length; j++) {
-                if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    deleteTileOnBoard(x + j, y + i, gameBoard);
-                }
-            }
-        }
+        deleteCurrentTetrimino(gameBoard);
 
         x--;
 
@@ -244,19 +236,14 @@ public class Piece {
         }
         
         // delete the previous piece from the board
-        for (int i = 0; i < tiles.length; i++) {
-            for (int j = 0; j < tiles[0].length; j++) {
-                if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    deleteTileOnBoard(x + j, y + i, gameBoard);
-                }
-            }
-        }
+        deleteCurrentTetrimino(gameBoard);
 
         assert nextRotation != null;
         tiles = convertToTiles(nextRotation, shape);
 
 
         insertPieceIntoBoard(gameBoard);
+
     }
 
 
@@ -282,13 +269,7 @@ public class Piece {
 
 
         // delete the previous piece from the board
-        for (int i = 0; i < tiles.length; i++) {
-            for (int j = 0; j < tiles[0].length; j++) {
-                if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    deleteTileOnBoard(x + j, y + i, gameBoard);
-                }
-            }
-        }
+        deleteCurrentTetrimino(gameBoard);
 
         assert nextRotation != null;
         tiles = convertToTiles(nextRotation, shape);

@@ -4,12 +4,9 @@
         * a tile contains a block state and a sprite
  */
 
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.net.URL;
 
 public class Tile extends Rectangle2D.Double implements Drawable {
 
@@ -50,18 +47,19 @@ public class Tile extends Rectangle2D.Double implements Drawable {
                 case T -> this.sprite = GamePanel.sprites[PURPLE];
                 case Z -> this.sprite = GamePanel.sprites[RED];
                 case EMPTY -> {
-                    URL url = getClass()
-                            .getClassLoader()
-                            .getResource(
-                                    "Sprites\\empty_tile.png"
-                            );
-
-                    try {
-                        assert url != null;
-                        this.sprite = ImageIO.read(url);
-                    } catch (IOException e) {
-                        System.out.println("'empty_tile.png' couldn't be read!");
-                    }
+//                    URL url = getClass()
+//                            .getClassLoader()
+//                            .getResource(
+//                                    "Sprites\\empty_tile.png"
+//                            );
+//
+//                    try {
+//                        assert url != null;
+//                        this.sprite = ImageIO.read(url);
+//                    } catch (IOException e) {
+//                        System.out.println("'empty_tile.png' couldn't be read!");
+//                    }
+                    this.sprite = null;
 
                 }
             }
@@ -75,7 +73,10 @@ public class Tile extends Rectangle2D.Double implements Drawable {
 
     @Override
     public void draw(Graphics g) {
-        g.drawImage(sprite, (int) x, (int) y, null);
+        if (sprite != null) {
+            g.drawImage(sprite, (int) x, (int) y, null);
+        }
+
     }
 }
 

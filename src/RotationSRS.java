@@ -146,6 +146,13 @@ public class RotationSRS {
                             {0, 1, 0}
                     }
             };
+    public static int[][][] ORotation =
+            {
+                    {
+                            {1, 1},
+                            {1, 1}
+                    }
+            };
 
     public static int[][] getRotation(Shape shape, int index) {
         switch (shape) {
@@ -166,6 +173,9 @@ public class RotationSRS {
             }
             case T -> {
                 return TRotation[index];
+            }
+            case O -> {
+                return ORotation[index];
             }
             default -> {
                 return null;
