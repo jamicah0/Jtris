@@ -1,7 +1,7 @@
 public enum BlockState {
     EMPTY,
     FILLED_SELECTED,
-    FILLED_LOCKED
+    FILLED_LOCKED,
 }
 
 /*

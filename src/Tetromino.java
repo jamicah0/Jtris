@@ -103,23 +103,18 @@ public class Tetromino {
         isLocked = true;
     }
 
+    public void hardDrop(Tile[][] gameBoard) {
+        while (!isAtTheBottom(gameBoard)) {
+            moveDown(gameBoard);
+        }
+    }
+
     // moves the Piece down, returns if the piece should be locked
     public void moveDown(Tile[][] gameBoard) {
         // check if the piece can move down
-        for (int i = 0; i < tiles.length; i++) {
-            for (int j = 0; j < tiles[0].length; j++) {
-                if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    // check if the piece is at the bottom of the board
-                    // or if there is a locked piece below it
-                    if (y + i + 1 >= gameBoard.length || gameBoard[y + i + 1][x + j].state == BlockState.FILLED_LOCKED) {
-                        lockPiece();
-                        return;
-                    }
-                }
-            }
+        if (isAtTheBottom(gameBoard)) {
+            return;
         }
-
-
 
 
         // delete the previous piece from the board
@@ -130,6 +125,39 @@ public class Tetromino {
 
         // insert the piece into the board
         insertPieceIntoBoard(gameBoard);
+    }
+
+    public boolean isAtTheBottom(Tile[][] gameBoard) {
+        for (int i = 0; i < tiles.length; i++) {
+            for (int j = 0; j < tiles[0].length; j++) {
+                if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
+                    // check if the piece is at the bottom of the board
+                    // or if there is a locked piece below it
+                    if (y + i + 1 >= gameBoard.length || gameBoard[y + i + 1][x + j].state == BlockState.FILLED_LOCKED) {
+                        lockPiece();
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public int calculateGhostY(Tile[][] gameBoard) {
+        int ghostY = y;
+        while (true) {
+            for (int i = 0; i < tiles.length; i++) {
+                for (int j = 0; j < tiles[0].length; j++) {
+                    if (tiles[i][j].state == BlockState.FILLED_SELECTED || tiles[i][j].state == BlockState.FILLED_LOCKED) {
+                        int newY = ghostY + i + 1;
+                        if (newY >= gameBoard.length || gameBoard[newY][x + j].state == BlockState.FILLED_LOCKED) {
+                            return ghostY;
+                        }
+                    }
+                }
+            }
+            ghostY++;
+        }
     }
 
     public void deleteCurrentTetrimino(Tile[][] gameBoard) {

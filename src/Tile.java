@@ -14,13 +14,14 @@ public class Tile extends Rectangle2D.Double implements Drawable {
     BlockState state;
     BufferedImage sprite;
 
-    public final int RED = 0;
-    public final int ORANGE = 1;
-    public final int YELLOW = 2;
-    public final int GREEN = 3;
-    public final int CYAN = 4;
-    public final int BLUE = 5;
-    public final int PURPLE = 6;
+    public static final int RED = 0;
+    public static final int ORANGE = 1;
+    public static final int YELLOW = 2;
+    public static final int GREEN = 3;
+    public static final int CYAN = 4;
+    public static final int BLUE = 5;
+    public static final int PURPLE = 6;
+    public static final int X = 11;
 
 
 
@@ -46,22 +47,7 @@ public class Tile extends Rectangle2D.Double implements Drawable {
                 case S -> this.sprite = GamePanel.sprites[GREEN];
                 case T -> this.sprite = GamePanel.sprites[PURPLE];
                 case Z -> this.sprite = GamePanel.sprites[RED];
-                case EMPTY -> {
-//                    URL url = getClass()
-//                            .getClassLoader()
-//                            .getResource(
-//                                    "Sprites\\empty_tile.png"
-//                            );
-//
-//                    try {
-//                        assert url != null;
-//                        this.sprite = ImageIO.read(url);
-//                    } catch (IOException e) {
-//                        System.out.println("'empty_tile.png' couldn't be read!");
-//                    }
-                    this.sprite = null;
-
-                }
+                case EMPTY -> this.sprite = null;
             }
         } catch (NullPointerException e) {
             System.out.println("Error reading sprite sheet, specifically for " + texture);
@@ -76,7 +62,6 @@ public class Tile extends Rectangle2D.Double implements Drawable {
         if (sprite != null) {
             g.drawImage(sprite, (int) x, (int) y, null);
         }
-
     }
 }
 
