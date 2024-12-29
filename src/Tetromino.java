@@ -3,7 +3,10 @@
    and convert it into a 2d arrayList when adding it into the board
  */
 
+import java.util.List;
+
 public class Tetromino {
+    private static final int TOTAL_ROTATION_STATES = 4;
     Tile[][] tiles;
     int x, y;
     int rotationIndex;
@@ -77,14 +80,20 @@ public class Tetromino {
         return tiles;
     }
 
-    public void insertPieceIntoBoard(Tile[][] gameBoard) {
+    public boolean insertPieceIntoBoard(Tile[][] gameBoard) {
         for (int i = 0; i < tiles.length; i++) {
             for (int j = 0; j < tiles[0].length; j++) {
                 if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    gameBoard[y + i][x + j] = tiles[i][j];
+                    if (gameBoard[y + i][x + j].state == BlockState.FILLED_LOCKED) {
+                        return false;
+                    } else {
+                        gameBoard[y + i][x + j] = tiles[i][j];
+                    }
+
                 }
             }
         }
+        return true;
     }
 
     // set a tile to EMPTY
@@ -223,13 +232,30 @@ public class Tetromino {
     }
 
 
-    private boolean canRotate(Tile[][] gameBoard, int[][] nextRotation) {
-        for (int i = 0; i < tiles.length; i++) {
-            for (int j = 0; j < tiles[0].length; j++) {
-                if (nextRotation[i][j] == 1) {
-                    int newX = x + j;
-                    int newY = y + i;
-                    if (isNotOutOfBounds(gameBoard, newX, newY)) {
+    private boolean canRotateOrKick(Tile[][] gameBoard, int[][] nextRotation, boolean clockwise) {
+        int nextState = (rotationIndex + (clockwise ? 1 : -1) + TOTAL_ROTATION_STATES) % TOTAL_ROTATION_STATES;
+        List<WallKicks.Offset> kicks = WallKicks.getWallKicks(rotationIndex, nextState, shape);
+
+        for (WallKicks.Offset kick : kicks) {
+            int testX = x + kick.x;
+            int testY = y + kick.y;
+            if (canPlacePiece(gameBoard, nextRotation, testX, testY)) {
+                deleteCurrentTetrimino(gameBoard);
+                x = testX;
+                y = testY;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean canPlacePiece(Tile[][] gameBoard, int[][] piece, int testX, int testY) {
+        for (int i = 0; i < piece.length; i++) {
+            for (int j = 0; j < piece[0].length; j++) {
+                if (piece[i][j] == 1) {
+                    int newX = testX + j;
+                    int newY = testY + i;
+                    if (isOutOfBounds(gameBoard, newX, newY)) {
                         return false;
                     }
                 }
@@ -238,7 +264,7 @@ public class Tetromino {
         return true;
     }
 
-    private static boolean isNotOutOfBounds(Tile[][] gameBoard, int newX, int newY) {
+    private static boolean isOutOfBounds(Tile[][] gameBoard, int newX, int newY) {
         return newX < 0 || newX >= gameBoard[0].length || newY < 0 || newY >= gameBoard.length || gameBoard[newY][newX].state == BlockState.FILLED_LOCKED;
     }
 
@@ -247,30 +273,15 @@ public class Tetromino {
             return;
         }
 
+        int nextRotationIndex = (rotationIndex + 1) % TOTAL_ROTATION_STATES;
+        int[][] nextRotation = RotationSRS.getRotation(shape, nextRotationIndex);
 
-
-
-        rotationIndex++;
-
-        if (rotationIndex > 3) {
-            rotationIndex = 0;
+        if (canRotateOrKick(gameBoard, nextRotation, true)) {
+            rotationIndex = nextRotationIndex;
+            assert nextRotation != null;
+            tiles = convertToTiles(nextRotation, shape);
+            insertPieceIntoBoard(gameBoard);
         }
-
-        int[][] nextRotation = RotationSRS.getRotation(shape, rotationIndex);
-
-        if (!canRotate(gameBoard, nextRotation)) {
-            rotationIndex--;
-            return;
-        }
-        
-        // delete the previous piece from the board
-        deleteCurrentTetrimino(gameBoard);
-
-        assert nextRotation != null;
-        tiles = convertToTiles(nextRotation, shape);
-
-
-        insertPieceIntoBoard(gameBoard);
 
     }
 
@@ -280,31 +291,15 @@ public class Tetromino {
             return;
         }
 
+        int nextRotationIndex = (rotationIndex - 1 + TOTAL_ROTATION_STATES) % TOTAL_ROTATION_STATES;
+        int[][] nextRotation = RotationSRS.getRotation(shape, nextRotationIndex);
 
-
-        rotationIndex--;
-
-        if (rotationIndex < 0) {
-            rotationIndex = 3;
+        if (canRotateOrKick(gameBoard, nextRotation, false)) {
+            rotationIndex = nextRotationIndex;
+            assert nextRotation != null;
+            tiles = convertToTiles(nextRotation, shape);
+            insertPieceIntoBoard(gameBoard);
         }
-
-        int[][] nextRotation = RotationSRS.getRotation(shape, rotationIndex);
-
-        if (!canRotate(gameBoard, nextRotation)) {
-            rotationIndex++;
-            return;
-        }
-
-
-        // delete the previous piece from the board
-        deleteCurrentTetrimino(gameBoard);
-
-        assert nextRotation != null;
-        tiles = convertToTiles(nextRotation, shape);
-
-
-
-        insertPieceIntoBoard(gameBoard);
     }
 
 }

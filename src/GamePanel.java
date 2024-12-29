@@ -29,34 +29,35 @@ import java.util.Collections;
     * (maybe) wall kick
 
     Tetris standardized Guidelines:
-    * Playfield at least 10 cells wide   (x)
-    * Playfield at least 22 cells tall   (x)
+    * Playfield at least 10 cells wide  (x)
+    * Playfield at least 22 cells tall  (x)
     * correct tetromino colors          (x)
     * correct tetromino start locations (x)
     * SRS rotation                      (x)
-    * standard controls
+    * standard controls                 (x)
     * 7 bag system                      (x)
     * hold piece                        (x)
-    * ghost piece
+    * ghost piece                       (x)
     * soft drop                         (x)
     * leveling with clearing lines
     * game over on top out
 
     TO-DO:
-    * create a game loop    (x)
-    * render board          (x)
-    * piece renderer        (x)
-    * move piece            (x)
-    * collision detection   (x)
-    * rotation              (x)
-    * input handling        (x)
-    * hold piece            (x)
-    * see next pieces       (x)
-    * hard drop             (x)
-    * ghost piece
-    * show incoming piece
-    * clear lines
+    * create a game loop                (x)
+    * render board                      (x)
+    * piece renderer                    (x)
+    * move piece                        (x)
+    * collision detection               (x)
+    * rotation                          (x)
+    * input handling                    (x)
+    * hold piece                        (x)
+    * see next pieces                   (x)
+    * hard drop                         (x)
+    * ghost piece                       (x)
+    * show incoming piece               (x)
+    * clear lines                       (x)
     * (optional) correct lock delay
+    * wall/floor kicks                  (x)
     * scoring
     * game over
  */
@@ -128,8 +129,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     int dasCounter = 0;
     int arrCounter = 0;
     int sdfCounter = 0;
-    int DAS = 7; // standard 17
-    int ARR = 1;  // standard 5
+    int DAS = 7;            // standard 17
+    int ARR = 1;            // standard 5
     int SDF = GRAVITY / 20;
 
     boolean isGameRunning = true;
@@ -330,7 +331,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     private void insertNextTetrimino() {
         currentTetromino = new Tetromino(sevenBag[currentBagIndex]);
-        currentTetromino.insertPieceIntoBoard(gameBoard);
+        if (!(currentTetromino.insertPieceIntoBoard(gameBoard))) {
+            System.out.println("Game Over!");
+            isGameRunning = false;
+        }
+
         currentBagIndex++;
 
         if (currentBagIndex > 6) {
@@ -751,6 +756,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             case KeyEvent.VK_CONTROL -> ctrl = false;
             case KeyEvent.VK_SHIFT -> shift = false;
             case KeyEvent.VK_SPACE -> space = false;
+
         }
 
 
