@@ -11,12 +11,20 @@ public class Tetromino {
     int x, y;
     int rotationIndex;
     boolean isLocked;
+    // if the tetromino has hit the floor at least once
+    boolean hasHitFloorOnce;
+    // if the tetromino is currently on the floor
+    boolean isCurrentlyOnFloor;
+    int lockState;
     Shape shape;
 
     public Tetromino(Shape shape) {
         this.shape = shape;
         rotationIndex = 0;
         isLocked = false;
+        hasHitFloorOnce = false;
+        isCurrentlyOnFloor = false;
+        lockState = 0;
         // initialize the piece to the selected shape
         // and set the initial position
         switch (shape) {
@@ -116,6 +124,7 @@ public class Tetromino {
         while (!isAtTheBottom(gameBoard)) {
             moveDown(gameBoard);
         }
+        lockPiece();
     }
 
     // moves the Piece down, returns if the piece should be locked
@@ -127,7 +136,7 @@ public class Tetromino {
 
 
         // delete the previous piece from the board
-        deleteCurrentTetrimino(gameBoard);
+        deleteCurrentTetromino(gameBoard);
 
         // move the piece down
         y++;
@@ -143,7 +152,6 @@ public class Tetromino {
                     // check if the piece is at the bottom of the board
                     // or if there is a locked piece below it
                     if (y + i + 1 >= gameBoard.length || gameBoard[y + i + 1][x + j].state == BlockState.FILLED_LOCKED) {
-                        lockPiece();
                         return true;
                     }
                 }
@@ -169,7 +177,7 @@ public class Tetromino {
         }
     }
 
-    public void deleteCurrentTetrimino(Tile[][] gameBoard) {
+    public void deleteCurrentTetromino(Tile[][] gameBoard) {
         for (int i = 0; i < tiles.length; i++) {
             for (int j = 0; j < tiles[0].length; j++) {
                 if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
@@ -195,7 +203,7 @@ public class Tetromino {
         }
 
         // delete the previous piece from the board
-        deleteCurrentTetrimino(gameBoard);
+        deleteCurrentTetromino(gameBoard);
 
         x++;
 
@@ -223,7 +231,7 @@ public class Tetromino {
         }
 
         // delete the previous piece from the board
-        deleteCurrentTetrimino(gameBoard);
+        deleteCurrentTetromino(gameBoard);
 
         x--;
 
@@ -240,7 +248,7 @@ public class Tetromino {
             int testX = x + kick.x;
             int testY = y + kick.y;
             if (canPlacePiece(gameBoard, nextRotation, testX, testY)) {
-                deleteCurrentTetrimino(gameBoard);
+                deleteCurrentTetromino(gameBoard);
                 x = testX;
                 y = testY;
                 return true;

@@ -147,8 +147,6 @@ public class WallKicks {
         ));
     }
 
-
-
     public static String getRotationKey(int currentState, int nextState) {
         return currentState + "->" + nextState;
     }

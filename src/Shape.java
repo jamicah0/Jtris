@@ -1,7 +1,6 @@
 import java.awt.image.BufferedImage;
 import java.util.Random;
 
-
 public enum Shape {
     I,
     J,
@@ -12,7 +11,11 @@ public enum Shape {
     Z,
     EMPTY;
 
-    private static final Random PRNG = new Random();
+    private static final Random RNG = new Random();
+
+    public static Shape getRandomShape() {
+        return values()[RNG.nextInt(values().length - 1)];
+    }
 
     public static int getColor(Shape shape) {
         int index = -1;
