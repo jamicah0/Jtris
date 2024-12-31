@@ -56,7 +56,7 @@ import java.util.Collections;
     * ghost piece                       (x)
     * show incoming piece               (x)
     * clear lines                       (x)
-    * (optional) correct lock delay
+    * (optional) correct lock delay     (x)
     * wall/floor kicks                  (x)
     * scoring
     * game over
@@ -104,6 +104,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     int score;
     int level;
+    int totalLinesCleared;
 
     int currentBagIndex;
     Tetromino currentTetromino;
@@ -125,8 +126,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     boolean space = false;
 
     // gravity
-    int gravityCounter;
-    int GRAVITY = 80;
+    double gravityCounter;
+    double GRAVITY;
     int lockDelay = 30;
     // max movements when tetromino hits the floor
     int maxMovements = 14;
@@ -134,10 +135,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     int movementCounter;
     int dasCounter;
     int arrCounter;
-    int sdfCounter;
-    int DAS = 7;            // standard 17
-    int ARR = 1;            // standard 5
-    int SDF = GRAVITY / 20;
+    double sdfCounter;
+    int DAS = 7;            // standard 9
+    int ARR = 1;            // standard 3
+    double SDF = 20;      // standard 6, 2000 for instant drop
+    double softDropSpeed;
 
     boolean isGameRunning = true;
 
@@ -184,10 +186,17 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         arrCounter = 0;
         sdfCounter = 0;
 
-        gravityCounter = 0;
+        gravityCounter = 0.0;
 
+        totalLinesCleared = 0;
         score = 0;
         level = 1;
+
+        GRAVITY = 0.016;
+        softDropSpeed = SDF * GRAVITY;
+
+        System.out.println(GRAVITY);
+
 
         loadSprites();
 
@@ -217,6 +226,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         Thread t = new Thread(this);
         t.start();
     }
+
+
 
 
     private void getNextQueue() {
@@ -280,12 +291,24 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             checkInput();
             lockDelayAction();
 
-            if (gravityCounter == GRAVITY) {
-                gravityCounter = 0;
-                currentTetromino.moveDown(gameBoard);
+            gravityCounter += GRAVITY;
+
+            if (gravityCounter >= 1 && !down) {
+                int cellsToMove = (int) gravityCounter;
+                for (int i = 0; i < cellsToMove; i++) {
+                    currentTetromino.moveDown(gameBoard);
+                }
                 repaint();
+                gravityCounter -= cellsToMove;
+
             }
-            gravityCounter++;
+
+//            if (gravityCounter == GRAVITY) {
+//                gravityCounter = 0;
+//                currentTetromino.moveDown(gameBoard);
+//                repaint();
+//            }
+//            gravityCounter++;
 
             try {
                 Thread.sleep(10);
@@ -322,17 +345,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         if (linesToClear.isEmpty()) {
             return;
         }
-        int amountLinesCleared = linesToClear.size();
-        System.out.println("Cleared " + amountLinesCleared + " lines!");
 
-
-
-        switch (amountLinesCleared) {
-            case 1 -> score += 100 * level;
-            case 2 -> score += 300 * level;
-            case 3 -> score += 500 * level;
-            case 4 -> score += 800 * level;
-        }
 
         for (int clearIndex : linesToClear) {
             for (Tile tile : gameBoard[clearIndex]) {
@@ -341,6 +354,43 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             }
             moveTilesDown(clearIndex);
         }
+
+        int amountLinesCleared = linesToClear.size();
+        totalLinesCleared += amountLinesCleared;
+
+        switch (amountLinesCleared) {
+            case 1 -> score += 100 * level;
+            case 2 -> score += 300 * level;
+            case 3 -> score += 500 * level;
+            case 4 -> score += 800 * level;
+        }
+
+        int level = (totalLinesCleared/10) + 1;
+
+        if (level > this.level) {
+            this.level = level;
+            GRAVITY = calculateGravityPerFrame(level, (int) fps);
+            softDropSpeed = SDF * GRAVITY;
+            gravityCounter = 0;
+        }
+
+
+
+
+
+
+
+
+    }
+
+    public double calculateGravity(int level) {
+        double time = Math.pow(0.8 - ((level - 1) * 0.007), level - 1);
+        return 1 / time;  // Gravity in cells per second
+    }
+
+    public double calculateGravityPerFrame(int level, int fps) {
+        double gravityPerSecond = calculateGravity(level);
+        return gravityPerSecond / fps;  // Gravity in cells per frame
     }
 
     private void moveTilesDown(int clearedIndex) {
@@ -486,14 +536,18 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             }
 
 
-            sdfCounter++;
-            if (sdfCounter == SDF) {
-                sdfCounter = 0;
-                currentTetromino.moveDown(gameBoard);
-                score++;
+            sdfCounter += softDropSpeed;
+
+            if (sdfCounter >= 1) {
+                int cellsToMove = (int) sdfCounter;
+                for (int i = 0; i < cellsToMove; i++) {
+                    currentTetromino.moveDown(gameBoard);
+                }
                 repaint();
+                sdfCounter -= cellsToMove;
                 gravityCounter = 0;
             }
+
         } else {
             sdfCounter = 0;
         }
@@ -563,99 +617,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
 
-
-    private void drawNextQueue(Graphics g) {
-        int xPos, yPos;
-        for (int i = currentBagIndex; i < currentBagIndex + AMOUNT_NEXT_PIECES; i++) {
-            int[][] temp = RotationSRS.getRotation(nextQueue.get(i), 0);
-            assert temp != null;
-            Tile[][] piece = convertToTiles(temp, nextQueue.get(i));
-
-            for (int y = 0; y < piece.length; y++) {
-                for (int x = 0; x < piece[y].length; x++) {
-                    if (nextQueue.get(i) == Shape.I) {
-                        xPos = NEXT_QUEUE_X-(TILE_SIZE/2) + x * TILE_SIZE;
-                        yPos = ((i - currentBagIndex) * TILE_SIZE * 3) - (TILE_SIZE/2)  + NEXT_QUEUE_Y + y * TILE_SIZE;
-                    } else if (nextQueue.get(i) == Shape.O) {
-                        xPos = NEXT_QUEUE_X+(TILE_SIZE/2) + x * TILE_SIZE;
-                        yPos = ((i - currentBagIndex) * TILE_SIZE * 3) + NEXT_QUEUE_Y + y * TILE_SIZE;
-                    } else {
-                        xPos = NEXT_QUEUE_X + x * TILE_SIZE;
-                        yPos = ((i - currentBagIndex) * TILE_SIZE * 3) + NEXT_QUEUE_Y + y * TILE_SIZE;
-                    }
-
-                    if (piece[y][x].state == BlockState.FILLED_LOCKED) {
-                        piece[y][x].setX(xPos);
-                        piece[y][x].setY(yPos);
-                        piece[y][x].draw(g);
-                    }
-                }
-            }
-        }
-    }
-
-    private void drawHold(Graphics g) {
-
-        for (int i = 0; i < hold.length; i++) {
-            for (int j = 0; j < hold[i].length; j++) {
-                int xPos = HOLD_X + j * TILE_SIZE;
-                int yPos = HOLD_Y + i * TILE_SIZE;
-
-                if (holdTetromino.shape == Shape.I) {
-                    xPos = 17 + j * TILE_SIZE;
-                    yPos = 138 + i * TILE_SIZE;
-                } else if (holdTetromino.shape == Shape.O) {
-                    xPos = 47 + j * TILE_SIZE;
-                    yPos = 153 + i * TILE_SIZE;
-                }
-
-                try {
-                    hold[i][j].setX(xPos);
-                    hold[i][j].setY(yPos);
-                    hold[i][j].draw(g);
-                } catch (NullPointerException _) {}
-            }
-        }
-    }
-
-
-    private void drawGhostPiece(Graphics g) {
-        int ghostY = currentTetromino.calculateGhostY(gameBoard);
-        for (int i = 0; i < currentTetromino.tiles.length; i++) {
-            for (int j = 0; j < currentTetromino.tiles[0].length; j++) {
-                if (currentTetromino.tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    int xPos = BOARD_X + (currentTetromino.x + j) * TILE_SIZE;
-                    int yPos = BOARD_Y + (ghostY + i) * TILE_SIZE;
-
-                    int color = Shape.getColor(currentTetromino.shape) & 0x00FFFFFF | (GHOST_OPACITY << 24);
-
-                    g.setColor(new Color(color, true));
-                    g.fillRect(xPos+1, yPos+1, TILE_SIZE, TILE_SIZE);
-                }
-            }
-        }
-    }
-
-    private void drawIncomingPiece(Graphics g) {
-        int[][] nextTetrominoInt = RotationSRS.getRotation(nextQueue.get(currentBagIndex), 0);
-        assert nextTetrominoInt != null;
-        Tile[][] nextTetromino = convertToTiles(nextTetrominoInt, nextQueue.get(currentBagIndex));
-        swapSprite(nextTetromino, Tile.X);
-
-        for (int i = 0; i < nextTetromino.length; i++) {
-            for (int j = 0; j < nextTetromino[i].length; j++) {
-
-                int xPos = BOARD_X + ((nextQueue.get(currentBagIndex) == Shape.O) ? 4 : 3) * TILE_SIZE + j * TILE_SIZE;
-                int yPos = BOARD_Y + i * TILE_SIZE;
-
-                try {
-                    nextTetromino[i][j].setX(xPos+1);
-                    nextTetromino[i][j].setY(yPos+1);
-                    nextTetromino[i][j].draw(g);
-                } catch (NullPointerException _) {}
-            }
-        }
-    }
 
     private void swapSprite(Tile[][] tetromino, int spriteIndex) {
         for (Tile[] tiles : tetromino) {
@@ -735,9 +696,16 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         g.setFont(font);
         g.setColor(Color.WHITE);
-        g.drawString("FPS: " + fps, 10, 10);
-        g.drawString("Level: " + level, 10, 60);
-        g.drawString("Score: " + score, 10, 70);
+
+        int x = 10;
+        int y = 12;
+        g.drawString("FPS: " + fps, x, y);
+        g.drawString("Level: " + level, x, y+=20);
+        g.drawString("Score: " + score, x, y+=20);
+        g.drawString("Lines Cleared: " + totalLinesCleared, x, y+=20);
+        g.drawString("Gravity: " + GRAVITY, x, y+=20);
+        g.drawString("Gravity Counter: " + gravityCounter, x, y+=20);
+
 
         if (hold != null) {
             drawHold(g);
@@ -754,6 +722,99 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         }
 
 
+    }
+
+
+    private void drawNextQueue(Graphics g) {
+        int xPos, yPos;
+        for (int i = currentBagIndex; i < currentBagIndex + AMOUNT_NEXT_PIECES; i++) {
+            int[][] temp = RotationSRS.getRotation(nextQueue.get(i), 0);
+            assert temp != null;
+            Tile[][] piece = convertToTiles(temp, nextQueue.get(i));
+
+            for (int y = 0; y < piece.length; y++) {
+                for (int x = 0; x < piece[y].length; x++) {
+                    if (nextQueue.get(i) == Shape.I) {
+                        xPos = NEXT_QUEUE_X-(TILE_SIZE/2) + x * TILE_SIZE;
+                        yPos = ((i - currentBagIndex) * TILE_SIZE * 3) - (TILE_SIZE/2)  + NEXT_QUEUE_Y + y * TILE_SIZE;
+                    } else if (nextQueue.get(i) == Shape.O) {
+                        xPos = NEXT_QUEUE_X+(TILE_SIZE/2) + x * TILE_SIZE;
+                        yPos = ((i - currentBagIndex) * TILE_SIZE * 3) + NEXT_QUEUE_Y + y * TILE_SIZE;
+                    } else {
+                        xPos = NEXT_QUEUE_X + x * TILE_SIZE;
+                        yPos = ((i - currentBagIndex) * TILE_SIZE * 3) + NEXT_QUEUE_Y + y * TILE_SIZE;
+                    }
+
+                    if (piece[y][x].state == BlockState.FILLED_LOCKED) {
+                        piece[y][x].setX(xPos);
+                        piece[y][x].setY(yPos);
+                        piece[y][x].draw(g);
+                    }
+                }
+            }
+        }
+    }
+
+    private void drawHold(Graphics g) {
+
+        for (int i = 0; i < hold.length; i++) {
+            for (int j = 0; j < hold[i].length; j++) {
+                int xPos = HOLD_X + j * TILE_SIZE;
+                int yPos = HOLD_Y + i * TILE_SIZE;
+
+                if (holdTetromino.shape == Shape.I) {
+                    xPos = 17 + j * TILE_SIZE;
+                    yPos = 138 + i * TILE_SIZE;
+                } else if (holdTetromino.shape == Shape.O) {
+                    xPos = 47 + j * TILE_SIZE;
+                    yPos = 153 + i * TILE_SIZE;
+                }
+
+                try {
+                    hold[i][j].setX(xPos);
+                    hold[i][j].setY(yPos);
+                    hold[i][j].draw(g);
+                } catch (NullPointerException _) {}
+            }
+        }
+    }
+
+    private void drawGhostPiece(Graphics g) {
+        int ghostY = currentTetromino.calculateGhostY(gameBoard);
+        for (int i = 0; i < currentTetromino.tiles.length; i++) {
+            for (int j = 0; j < currentTetromino.tiles[0].length; j++) {
+                if (currentTetromino.tiles[i][j].state == BlockState.FILLED_SELECTED) {
+                    int xPos = BOARD_X + (currentTetromino.x + j) * TILE_SIZE;
+                    int yPos = BOARD_Y + (ghostY + i) * TILE_SIZE;
+
+                    int color = Shape.getColor(currentTetromino.shape) & 0x00FFFFFF | (GHOST_OPACITY << 24);
+
+                    g.setColor(new Color(color, true));
+                    g.fillRect(xPos+1, yPos+1, TILE_SIZE, TILE_SIZE);
+                }
+            }
+        }
+    }
+
+    private void drawIncomingPiece(Graphics g) {
+        int[][] nextTetrominoInt = RotationSRS.getRotation(nextQueue.get(currentBagIndex), 0);
+        assert nextTetrominoInt != null;
+        Tile[][] nextTetromino = convertToTiles(nextTetrominoInt, nextQueue.get(currentBagIndex));
+        swapSprite(nextTetromino, Tile.X);
+
+        for (int i = 0; i < nextTetromino.length; i++) {
+            for (int j = 0; j < nextTetromino[i].length; j++) {
+
+                int xPos = BOARD_X + ((nextQueue.get(currentBagIndex) == Shape.O) ? 4 : 3) * TILE_SIZE + j * TILE_SIZE;
+                int yPos = BOARD_Y + i * TILE_SIZE;
+
+                try {
+                    nextTetromino[i][j].setX(xPos+1);
+                    nextTetromino[i][j].setY(yPos+1);
+                    nextTetromino[i][j].draw(g);
+                } catch (NullPointerException _) {}
+            }
+        }
     }
 
     private void drawLockOverlay(Graphics g) {
