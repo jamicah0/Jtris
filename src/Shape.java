@@ -9,12 +9,13 @@ public enum Shape {
     S,
     T,
     Z,
+    GARBAGE,
     EMPTY;
 
     private static final Random RNG = new Random();
 
     public static Shape getRandomShape() {
-        return values()[RNG.nextInt(values().length - 1)];
+        return values()[RNG.nextInt(values().length - 2)];
     }
 
     public static int getColor(Shape shape) {

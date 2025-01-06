@@ -1,19 +1,15 @@
-/*
-   change tiles to a 2D array if the games performance is slow
-   and convert it into a 2d arrayList when adding it into the board
- */
-
 import java.util.List;
 
 public class Tetromino {
     private static final int TOTAL_ROTATION_STATES = 4;
+    // tetr.io = 0; jstris = 2; tetris.com = 3
+    public static final int INITIAL_Y = 0;
+    public static final int INITIAL_X = 3;
     Tile[][] tiles;
     int x, y;
     int rotationIndex;
     boolean isLocked;
-    // if the tetromino has hit the floor at least once
     boolean hasHitFloorOnce;
-    // if the tetromino is currently on the floor
     boolean isCurrentlyOnFloor;
     int lockState;
     Shape shape;
@@ -25,24 +21,21 @@ public class Tetromino {
         hasHitFloorOnce = false;
         isCurrentlyOnFloor = false;
         lockState = 0;
-        // initialize the piece to the selected shape
-        // and set the initial position
         switch (shape) {
             case I -> {
                 tiles = convertToTiles(RotationSRS.IRotation[0], shape);
-                x = 3;
-                y = 0;
+                x = INITIAL_X;
+                y = INITIAL_Y;
             }
             case J -> {
-
                 tiles = convertToTiles(RotationSRS.JRotation[0], shape);
-                x = 3;
-                y = 0;
+                x = INITIAL_X;
+                y = INITIAL_Y;
             }
             case L -> {
                 tiles = convertToTiles(RotationSRS.LRotation[0], shape);
-                x = 3;
-                y = 0;
+                x = INITIAL_X;
+                y = INITIAL_Y;
             }
             case O -> {
                 int[][] initialO = {
@@ -50,23 +43,23 @@ public class Tetromino {
                         {1, 1}
                 };
                 tiles = convertToTiles(initialO, shape);
-                x = 4;
-                y = 0;
+                x = INITIAL_X + 1;
+                y = INITIAL_Y;
             }
             case S -> {
                 tiles = convertToTiles(RotationSRS.SRotation[0], shape);
-                x = 3;
-                y = 0;
+                x = INITIAL_X;
+                y = INITIAL_Y;
             }
             case T -> {
                 tiles = convertToTiles(RotationSRS.TRotation[0], shape);
-                x = 3;
-                y = 0;
+                x = INITIAL_X;
+                y = INITIAL_Y;
             }
             case Z -> {
                 tiles = convertToTiles(RotationSRS.ZRotation[0], shape);
-                x = 3;
-                y = 0;
+                x = INITIAL_X;
+                y = INITIAL_Y;
             }
         }
 
@@ -121,37 +114,42 @@ public class Tetromino {
     }
 
     public void hardDrop(Tile[][] gameBoard) {
-        while (!isAtTheBottom(gameBoard)) {
-            moveDown(gameBoard);
+        int amount = 1;
+        while (!isAtTheBottom(gameBoard, amount)) {
+            amount++;
         }
+        moveDown(gameBoard, amount);
         lockPiece();
     }
 
-    // moves the Piece down, returns if the piece should be locked
-    public void moveDown(Tile[][] gameBoard) {
-        // check if the piece can move down
-        if (isAtTheBottom(gameBoard)) {
-            return;
+    public void moveDown(Tile[][] gameBoard, int amount) {
+
+        int foo = 1;
+        while (true) {
+            if (isAtTheBottom(gameBoard, foo)) {
+                amount = foo-1;
+                break;
+            }
+            if (foo == amount) {
+                break;
+            }
+            foo++;
         }
 
-
-        // delete the previous piece from the board
         deleteCurrentTetromino(gameBoard);
 
-        // move the piece down
-        y++;
+        y += amount;
 
-        // insert the piece into the board
         insertPieceIntoBoard(gameBoard);
     }
 
-    public boolean isAtTheBottom(Tile[][] gameBoard) {
+    public boolean isAtTheBottom(Tile[][] gameBoard, int amount) {
         for (int i = 0; i < tiles.length; i++) {
             for (int j = 0; j < tiles[0].length; j++) {
                 if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
                     // check if the piece is at the bottom of the board
                     // or if there is a locked piece below it
-                    if (y + i + 1 >= gameBoard.length || gameBoard[y + i + 1][x + j].state == BlockState.FILLED_LOCKED) {
+                    if (y + i + amount >= gameBoard.length || gameBoard[y + i + amount][x + j].state == BlockState.FILLED_LOCKED) {
                         return true;
                     }
                 }
@@ -167,9 +165,13 @@ public class Tetromino {
                 for (int j = 0; j < tiles[0].length; j++) {
                     if (tiles[i][j].state == BlockState.FILLED_SELECTED || tiles[i][j].state == BlockState.FILLED_LOCKED) {
                         int newY = ghostY + i + 1;
-                        if (newY >= gameBoard.length || gameBoard[newY][x + j].state == BlockState.FILLED_LOCKED) {
-                            return ghostY;
-                        }
+                        // make sure gameBoard[newY][x + j] is not out of bounds
+
+                        try {
+                            if (newY >= gameBoard.length || gameBoard[newY][x + j].state == BlockState.FILLED_LOCKED) {
+                                return ghostY;
+                            }
+                        } catch (ArrayIndexOutOfBoundsException ignored) {}
                     }
                 }
             }
@@ -190,17 +192,7 @@ public class Tetromino {
     public void moveRight(Tile[][] gameBoard) {
 
         // check if there is a wall
-        for (int i = 0; i < tiles.length; i++) {
-            for (int j = 0; j < tiles[0].length; j++) {
-                if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    // check if the piece is at the right wall of the board
-                    // or if there is a piece next right to it
-                    if (x + j + 1 >= gameBoard[0].length || gameBoard[y + i][x + j+1].state == BlockState.FILLED_LOCKED) {
-                        return;
-                    }
-                }
-            }
-        }
+        if (hasHitRightWall(gameBoard)) return;
 
         // delete the previous piece from the board
         deleteCurrentTetromino(gameBoard);
@@ -211,24 +203,24 @@ public class Tetromino {
 
     }
 
-    public void moveLeft(Tile[][] gameBoard) {
-        // check if there is a wall
+    public boolean hasHitRightWall(Tile[][] gameBoard) {
         for (int i = 0; i < tiles.length; i++) {
             for (int j = 0; j < tiles[0].length; j++) {
                 if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
                     // check if the piece is at the right wall of the board
                     // or if there is a piece next right to it
-                    try {
-                        if (x + j - 1 >= gameBoard[0].length || gameBoard[y + i][x + j - 1].state == BlockState.FILLED_LOCKED) {
-                            return;
-                        }
-                    } catch (ArrayIndexOutOfBoundsException e) {
-                        return;
+                    if (x + j + 1 >= gameBoard[0].length || gameBoard[y + i][x + j+1].state == BlockState.FILLED_LOCKED) {
+                        return true;
                     }
-
                 }
             }
         }
+        return false;
+    }
+
+    public void moveLeft(Tile[][] gameBoard) {
+        // check if there is a wall
+        if (hasHitLeftWall(gameBoard)) return;
 
         // delete the previous piece from the board
         deleteCurrentTetromino(gameBoard);
@@ -237,6 +229,26 @@ public class Tetromino {
 
         insertPieceIntoBoard(gameBoard);
 
+    }
+
+    public boolean hasHitLeftWall(Tile[][] gameBoard) {
+        for (int i = 0; i < tiles.length; i++) {
+            for (int j = 0; j < tiles[0].length; j++) {
+                if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
+                    // check if the piece is at the right wall of the board
+                    // or if there is a piece next right to it
+                    try {
+                        if (x + j - 1 >= gameBoard[0].length || gameBoard[y + i][x + j - 1].state == BlockState.FILLED_LOCKED) {
+                            return true;
+                        }
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                        return true;
+                    }
+
+                }
+            }
+        }
+        return false;
     }
 
 
@@ -289,7 +301,39 @@ public class Tetromino {
             assert nextRotation != null;
             tiles = convertToTiles(nextRotation, shape);
             insertPieceIntoBoard(gameBoard);
+            checkTSpin(gameBoard);
         }
+
+    }
+
+    private void checkTSpin(Tile[][] gameBoard) {
+        if (shape != Shape.T) {
+            return;
+        }
+
+        int tilesAround = 0;
+        for (int i = 0; i < 3; i+=2) {
+            for (int j = 0; j < 3; j+=2) {
+                int xPos = x + j;
+                int yPos = y + i;
+
+                // TODO
+
+                // should be t spin mini
+                if (xPos < 0 || yPos < 0 || xPos > gameBoard[0].length-1 || yPos > gameBoard.length-1) {
+                    tilesAround++;
+                    continue;
+                }
+
+                if (gameBoard[yPos][xPos].state == BlockState.FILLED_LOCKED) {
+                    tilesAround++;
+                }
+            }
+        }
+        if (tilesAround >= 3) {
+            System.out.println("T-SPIN");
+        }
+
 
     }
 
@@ -307,6 +351,7 @@ public class Tetromino {
             assert nextRotation != null;
             tiles = convertToTiles(nextRotation, shape);
             insertPieceIntoBoard(gameBoard);
+            checkTSpin(gameBoard);
         }
     }
 

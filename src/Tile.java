@@ -48,6 +48,7 @@ public class Tile extends Rectangle2D.Double implements Drawable {
                 case T -> this.sprite = GamePanel.sprites[PURPLE];
                 case Z -> this.sprite = GamePanel.sprites[RED];
                 case EMPTY -> this.sprite = null;
+                case GARBAGE -> this.sprite = GamePanel.sprites[9];
             }
         } catch (NullPointerException e) {
             System.out.println("Error reading sprite sheet, specifically for " + texture);

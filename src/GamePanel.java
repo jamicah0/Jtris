@@ -4,6 +4,7 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -39,7 +40,7 @@ import java.util.Collections;
     * hold piece                        (x)
     * ghost piece                       (x)
     * soft drop                         (x)
-    * leveling with clearing lines
+    * leveling with clearing lines      (x)
     * game over on top out
 
     TO-DO:
@@ -58,7 +59,7 @@ import java.util.Collections;
     * clear lines                       (x)
     * (optional) correct lock delay     (x)
     * wall/floor kicks                  (x)
-    * scoring
+    * scoring: b2b, t-spin, etc.
     * game over
  */
 
@@ -76,6 +77,7 @@ import java.util.Collections;
  */
 
 // FIXME: rotating pieces way too fast sometimes makes the piece draw somewhere else
+// FIXME: piece phases through locked tiles when gravity is too high
 
 
 public class GamePanel extends JPanel implements Runnable, KeyListener {
@@ -103,10 +105,13 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     ArrayList<Shape> nextQueue;
 
     int score;
+    int back2backLevel;
+    int previousAmountCleared;
+    final int STARTING_LEVEL = 1;
     int level;
     int totalLinesCleared;
 
-    int currentBagIndex;
+    public static int currentBagIndex;
     Tetromino currentTetromino;
     Tetromino holdTetromino;
     int AMOUNT_NEXT_PIECES = 5;
@@ -128,17 +133,22 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     // gravity
     double gravityCounter;
     double GRAVITY;
-    int lockDelay = 30;
+    // standard 30
+    int lockDelay = 1000;
     // max movements when tetromino hits the floor
-    int maxMovements = 14;
+    // standard 14
+    int maxMovements = 111111;
 
     int movementCounter;
     int dasCounter;
     int arrCounter;
     double sdfCounter;
-    int DAS = 7;            // standard 9
-    int ARR = 1;            // standard 3
-    double SDF = 20;      // standard 6, 2000 for instant drop
+    // standard 9
+    final int DAS = 7;
+    // standard 3
+    final int ARR = 1;
+    // standard 6, 2000 for instant drop
+    final double SDF = 24;
     double softDropSpeed;
 
     boolean isGameRunning = true;
@@ -190,9 +200,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         totalLinesCleared = 0;
         score = 0;
-        level = 1;
+        back2backLevel = 0;
+        previousAmountCleared = 0;
+        level = STARTING_LEVEL;
 
-        GRAVITY = 0.016;
+        GRAVITY = calculateGravityPerFrame(level, 60);
         softDropSpeed = SDF * GRAVITY;
 
         System.out.println(GRAVITY);
@@ -218,6 +230,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         holdTetromino = null;
         currentTetromino = new Tetromino(sevenBag[0]);
+
+        // FIXME temp var
+        currentTetromino = new Tetromino(Shape.T);
 
         currentTetromino.insertPieceIntoBoard(gameBoard);
         currentBagIndex++;
@@ -271,6 +286,27 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 gameBoard[row][column] = new Tile(BlockState.EMPTY, Shape.EMPTY);
             }
         }
+        URL url = getClass().getClassLoader().getResource("Sprites\\garbage.png");
+        BufferedImage img = null;
+        try {
+            assert url != null;
+            img = ImageIO.read(url);
+        } catch (IOException ignored) {}
+        if (img == null) {
+            return;
+        }
+
+        for (int i = 0; i < img.getHeight(); i++) {
+            for (int j = 0; j < img.getWidth(); j++) {
+                int color = img.getRGB(j, i);
+
+                if (color == 0xff000000) {
+                    gameBoard[i][j] = new Tile(BlockState.FILLED_LOCKED, Shape.GARBAGE);
+                }
+            }
+        }
+
+
     }
 
 
@@ -295,9 +331,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
             if (gravityCounter >= 1 && !down) {
                 int cellsToMove = (int) gravityCounter;
-                for (int i = 0; i < cellsToMove; i++) {
-                    currentTetromino.moveDown(gameBoard);
-                }
+
+                currentTetromino.moveDown(gameBoard, cellsToMove);
+
                 repaint();
                 gravityCounter -= cellsToMove;
 
@@ -321,7 +357,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     // if any movement is made after the tetromino has hit the floor
     // the lock delay is reset (but only for <maxMovements> times)
     private void lockDelayAction() {
-        if (currentTetromino.isAtTheBottom(gameBoard)) {
+        if (currentTetromino.isAtTheBottom(gameBoard, 1)) {
             currentTetromino.hasHitFloorOnce = true;
             currentTetromino.isCurrentlyOnFloor = true;
         } else {
@@ -358,6 +394,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         int amountLinesCleared = linesToClear.size();
         totalLinesCleared += amountLinesCleared;
 
+        if (amountLinesCleared == previousAmountCleared) {
+            back2backLevel++;
+        } else {
+            back2backLevel = 0;
+        }
+
+        previousAmountCleared = amountLinesCleared;
+
         switch (amountLinesCleared) {
             case 1 -> score += 100 * level;
             case 2 -> score += 300 * level;
@@ -373,14 +417,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             softDropSpeed = SDF * GRAVITY;
             gravityCounter = 0;
         }
-
-
-
-
-
-
-
-
     }
 
     public double calculateGravity(int level) {
@@ -390,7 +426,12 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     public double calculateGravityPerFrame(int level, int fps) {
         double gravityPerSecond = calculateGravity(level);
-        return gravityPerSecond / fps;  // Gravity in cells per frame
+        double cellsPerFrame = gravityPerSecond / fps;
+        // gravity cap at 20G
+        if (cellsPerFrame > 20) {
+            cellsPerFrame = 20;
+        }
+        return cellsPerFrame;
     }
 
     private void moveTilesDown(int clearedIndex) {
@@ -494,7 +535,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 } else if (arrCounter < ARR) {
                     arrCounter++;
                 } else {
-                    resetLockState();
+                    if (!currentTetromino.hasHitRightWall(gameBoard)) {
+                        resetLockState();
+                    }
                     currentTetromino.moveRight(gameBoard);
                     repaint();
                     arrCounter = 0;
@@ -516,7 +559,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 } else if (arrCounter < ARR) {
                     arrCounter++;
                 } else {
-                    resetLockState();
+                    if (!currentTetromino.hasHitLeftWall(gameBoard)) {
+                        resetLockState();
+                    }
                     currentTetromino.moveLeft(gameBoard);
                     repaint();
                     arrCounter = 0;
@@ -540,10 +585,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
             if (sdfCounter >= 1) {
                 int cellsToMove = (int) sdfCounter;
-                for (int i = 0; i < cellsToMove; i++) {
-                    currentTetromino.moveDown(gameBoard);
-                }
+
+                currentTetromino.moveDown(gameBoard, cellsToMove);
+
                 repaint();
+                score++;
                 sdfCounter -= cellsToMove;
                 gravityCounter = 0;
             }
@@ -703,8 +749,12 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         g.drawString("Level: " + level, x, y+=20);
         g.drawString("Score: " + score, x, y+=20);
         g.drawString("Lines Cleared: " + totalLinesCleared, x, y+=20);
-        g.drawString("Gravity: " + GRAVITY, x, y+=20);
-        g.drawString("Gravity Counter: " + gravityCounter, x, y+=20);
+        g.drawString("B2B: x" + back2backLevel, x, y+=20);
+
+//        g.drawString("Movement Counter: " + movementCounter, x, y+=20);
+
+//        g.drawString("Gravity: " + GRAVITY, x, y+=20);
+//        g.drawString("Gravity Counter: " + gravityCounter, x, y+=20);
 
 
         if (hold != null) {
@@ -805,8 +855,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         for (int i = 0; i < nextTetromino.length; i++) {
             for (int j = 0; j < nextTetromino[i].length; j++) {
 
-                int xPos = BOARD_X + ((nextQueue.get(currentBagIndex) == Shape.O) ? 4 : 3) * TILE_SIZE + j * TILE_SIZE;
-                int yPos = BOARD_Y + i * TILE_SIZE;
+                int xPos = BOARD_X + ((nextQueue.get(currentBagIndex) == Shape.O) ? Tetromino.INITIAL_X + 1 : Tetromino.INITIAL_X) * TILE_SIZE + j * TILE_SIZE;
+                int yPos = BOARD_Y + Tetromino.INITIAL_Y * TILE_SIZE + i * TILE_SIZE;
 
                 try {
                     nextTetromino[i][j].setX(xPos+1);
@@ -827,7 +877,12 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                     int xPos = (int) gameBoard[row][column].x;
                     int yPos = (int) gameBoard[row][column].y;
 
-                    Color color = new Color(0, 0, 0, 5*currentTetromino.lockState);
+                    Color color = null;
+                    try {
+                        color = new Color(0, 0, 0, 5*currentTetromino.lockState);
+                    } catch (Exception e) {
+                        color = new Color(0, 0, 0);
+                    }
 
                     g.setColor(color);
                     g.fillRect(xPos, yPos, TILE_SIZE, TILE_SIZE);
