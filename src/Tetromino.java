@@ -1,6 +1,11 @@
 import java.util.List;
 
 public class Tetromino {
+    public enum TSPIN {
+        T_SPIN,
+        T_SPIN_MINI,
+        NONE
+    }
     private static final int TOTAL_ROTATION_STATES = 4;
     // tetr.io = 0; jstris = 2; tetris.com = 3
     public static final int INITIAL_Y = 0;
@@ -13,6 +18,7 @@ public class Tetromino {
     boolean isCurrentlyOnFloor;
     int lockState;
     Shape shape;
+    TSPIN spinType;
 
     public Tetromino(Shape shape) {
         this.shape = shape;
@@ -21,6 +27,7 @@ public class Tetromino {
         hasHitFloorOnce = false;
         isCurrentlyOnFloor = false;
         lockState = 0;
+        spinType = TSPIN.NONE;
         switch (shape) {
             case I -> {
                 tiles = convertToTiles(RotationSRS.IRotation[0], shape);
@@ -102,7 +109,7 @@ public class Tetromino {
         gameBoard[y][x] = new Tile(BlockState.EMPTY, Shape.EMPTY);
     }
 
-    public void lockPiece() {
+    public void lockPiece(Tile[][] gameBoard) {
         for (Tile[] tile : tiles) {
             for (int j = 0; j < tiles[0].length; j++) {
                 if (tile[j].state == BlockState.FILLED_SELECTED) {
@@ -110,6 +117,19 @@ public class Tetromino {
                 }
             }
         }
+
+        /*
+        for (Tile[] tile : gameBoard) {
+            for (int j = 0; j < gameBoard[0].length; j++) {
+                if (tile[j].state == BlockState.FILLED_SELECTED) {
+                    tile[j].state = BlockState.EMPTY;
+                }
+            }
+        }
+
+         */
+
+
         isLocked = true;
     }
 
@@ -119,7 +139,7 @@ public class Tetromino {
             amount++;
         }
         moveDown(gameBoard, amount);
-        lockPiece();
+        lockPiece(gameBoard);
     }
 
     public void moveDown(Tile[][] gameBoard, int amount) {
@@ -312,29 +332,72 @@ public class Tetromino {
         }
 
         int tilesAround = 0;
-        for (int i = 0; i < 3; i+=2) {
-            for (int j = 0; j < 3; j+=2) {
-                int xPos = x + j;
-                int yPos = y + i;
+        boolean isTSpinEligible = false;
 
-                // TODO
 
-                // should be t spin mini
-                if (xPos < 0 || yPos < 0 || xPos > gameBoard[0].length-1 || yPos > gameBoard.length-1) {
-                    tilesAround++;
-                    continue;
+        switch (rotationIndex) {
+            case 0 -> {
+                for (int i = 0; i < 3; i+=2) {
+                    if (gameBoard[y][x+i].state == BlockState.FILLED_LOCKED) {
+                        tilesAround++;
+                    }
+                }
+                for (int i = 0; i < 3; i++) {
+                    if (gameBoard[y + 2][x + i].state == BlockState.FILLED_LOCKED) {
+                        isTSpinEligible = true;
+                        break;
+                    }
                 }
 
-                if (gameBoard[yPos][xPos].state == BlockState.FILLED_LOCKED) {
-                    tilesAround++;
+            }
+            case 1 -> {
+                for (int i = 0; i < 3; i+=2) {
+                    if (gameBoard[y + i][x+2].state == BlockState.FILLED_LOCKED) {
+                        tilesAround++;
+                    }
+                }
+                for (int i = 0; i < 3; i++) {
+                    if (gameBoard[y + i][x].state == BlockState.FILLED_LOCKED) {
+                        isTSpinEligible = true;
+                        break;
+                    }
+                }
+            }
+            case 2 -> {
+                for (int i = 0; i < 3; i+=2) {
+                    if (gameBoard[y + 2][x + i].state == BlockState.FILLED_LOCKED) {
+                        tilesAround++;
+                    }
+                }
+                for (int i = 0; i < 3; i++) {
+                    if (gameBoard[y][x + i].state == BlockState.FILLED_LOCKED) {
+                        isTSpinEligible = true;
+                        break;
+                    }
+                }
+            }
+            case 3 -> {
+                for (int i = 0; i < 3; i+=2) {
+                    if (gameBoard[y + i][x].state == BlockState.FILLED_LOCKED) {
+                        tilesAround++;
+                    }
+                }
+                for (int i = 0; i < 3; i++) {
+                    if (gameBoard[y + i][x + 2].state == BlockState.FILLED_LOCKED) {
+                        isTSpinEligible = true;
+                        break;
+                    }
                 }
             }
         }
-        if (tilesAround >= 3) {
-            System.out.println("T-SPIN");
+
+        if (tilesAround >= 2 && isTSpinEligible) {
+            spinType = TSPIN.T_SPIN;
+        } else if (tilesAround == 1 && isTSpinEligible) {
+            spinType = TSPIN.T_SPIN_MINI;
+        } else {
+            spinType = TSPIN.NONE;
         }
-
-
     }
 
 

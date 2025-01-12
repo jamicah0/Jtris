@@ -4,19 +4,16 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.*;
 
 /*
     * * * * *
     * JTris *
     * * * * *
 
-    Tetris programmed in Tetris
+    Tetris programmed in Java
 
     Gameplay Features:
     * play infinitely
@@ -24,10 +21,10 @@ import java.util.Collections;
     * score system
     * show next piece
     * soft drop
-    * (maybe) hard drop
-    * (maybe) hold piece
-    * (maybe) ghost piece
-    * (maybe) wall kick
+    * hard drop
+    * hold piece
+    * ghost piece
+    * wall kicks
 
     Tetris standardized Guidelines:
     * Play field at least 10 cells wide  (x)
@@ -59,7 +56,10 @@ import java.util.Collections;
     * clear lines                       (x)
     * (optional) correct lock delay     (x)
     * wall/floor kicks                  (x)
-    * scoring: b2b, t-spin, etc.
+    * t-spins                           (x)
+    * combo score
+    * correct b2b scores                (x)
+    * main menu
     * game over
  */
 
@@ -76,8 +76,6 @@ import java.util.Collections;
      * and draw a background image once
  */
 
-// FIXME: rotating pieces way too fast sometimes makes the piece draw somewhere else
-// FIXME: piece phases through locked tiles when gravity is too high
 
 
 public class GamePanel extends JPanel implements Runnable, KeyListener {
@@ -87,13 +85,13 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         NONE
     }
     final static int TILE_SIZE = 30;
-    final static int BOARD_X = 150;
+    final static int BOARD_X = 150+24;
     final static int BOARD_Y = 34;
     final static int BOARD_WIDTH = 10;
     final static int BOARD_HEIGHT = 23;
-    final static int HOLD_X = 30;
+    final static int HOLD_X = 32;
     final static int HOLD_Y = 153;
-    final static int NEXT_QUEUE_X = 482;
+    final static int NEXT_QUEUE_X = 526;
     final static int NEXT_QUEUE_Y = 168;
 
     // ghost piece opacity, 24 ... 255
@@ -104,12 +102,17 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     Shape[] nextSevenBag;
     ArrayList<Shape> nextQueue;
 
+    ArrayList<PlayerScore> leaderboard;
+    PlayerScore currentPlayer;
+
+    boolean classicMode;
+
     int score;
     int back2backLevel;
-    int previousAmountCleared;
     final int STARTING_LEVEL = 1;
     int level;
     int totalLinesCleared;
+    boolean isB2BEligible;
 
     public static int currentBagIndex;
     Tetromino currentTetromino;
@@ -117,6 +120,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     int AMOUNT_NEXT_PIECES = 5;
 
     public static BufferedImage[] sprites;
+    public static BufferedImage board;
+    public static BufferedImage menu;
 
     // game board
     Tile[][] gameBoard;
@@ -129,15 +134,16 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     boolean ctrl = false;
     boolean shift = false;
     boolean space = false;
+    boolean esc = false;
 
     // gravity
     double gravityCounter;
     double GRAVITY;
     // standard 30
-    int lockDelay = 1000;
+    int LOCK_DELAY = 30;
     // max movements when tetromino hits the floor
     // standard 14
-    int maxMovements = 111111;
+    int MAX_MOVEMENTS = 14;
 
     int movementCounter;
     int dasCounter;
@@ -147,36 +153,96 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     final int DAS = 7;
     // standard 3
     final int ARR = 1;
-    // standard 6, 2000 for instant drop
-    final double SDF = 24;
+    // standard 12, 2000 for instant drop
+    final double SDF = 12;
     double softDropSpeed;
 
-    boolean isGameRunning = true;
+    boolean isGameRunning;
 
     long delta = 0;
     long last = 0;
     long fps = 0;
 
 
-    public GamePanel(int width, int height) {
-        initialize();
-        this.setPreferredSize(new Dimension(width, height));
-        this.setBackground(Color.BLACK);
-        JFrame frame = new JFrame("JTris");
+    private final JButton marathonButton;
+    private JButton classicButton = null;
 
-        // center of the screen (relative to the screen size)
+    public GamePanel(int width, int height) {
+        leaderboard = PlayerScore.readScores();
+        isGameRunning = false;
+        this.setPreferredSize(new Dimension(width, height));
+        this.setBackground(Color.GRAY);
+        this.setLayout(null);
+
+        marathonButton = new JButton("Marathon-Modus");
+        marathonButton.setFont(new Font("Verdana", Font.BOLD, 18));
+        marathonButton.setForeground(Color.WHITE);
+        marathonButton.setBackground(Color.BLACK);
+        marathonButton.setBounds(210, 345, 230, 50);
+        marathonButton.setFocusable(false);
+        marathonButton.addActionListener(e -> {
+            if (!isGameRunning) {
+                classicMode = false;
+                initialize();
+                classicButton.setVisible(false);
+                marathonButton.setVisible(false);
+            }
+        });
+        this.add(marathonButton);
+
+        classicButton = new JButton("Classic-Modus");
+        classicButton.setFont(new Font("Verdana", Font.BOLD, 18));
+        classicButton.setForeground(Color.WHITE);
+        classicButton.setBackground(Color.BLACK);
+        classicButton.setBounds(210, 415, 230, 50);
+        classicButton.setFocusable(false);
+        classicButton.addActionListener(e -> {
+            if (!isGameRunning) {
+                classicMode = true;
+                initialize();
+                marathonButton.setVisible(false);
+                classicButton.setVisible(false);
+            }
+        });
+        this.add(classicButton);
+
+        JFrame frame = new JFrame("JTris");
         frame.setLocation(
                 Toolkit.getDefaultToolkit()
                         .getScreenSize()
-                        .width/2 - width/2,
+                        .width / 2 - width / 2,
                 0
         );
+
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.addKeyListener(this);
         frame.add(this);
         frame.pack();
         frame.setVisible(true);
+        frame.setResizable(false);
+        try {
+            board = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites\\board.png")));
+            menu = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites\\menu.png")));
+        } catch (IOException e) {
+            System.out.println("Error reading board image");
+        }
+        menuLoop();
+    }
 
+    public void setButtonVisibility(boolean isVisible) {
+        marathonButton.setVisible(isVisible);
+        classicButton.setVisible(isVisible);
+    }
+
+
+    private void menuLoop() {
+        while (!isGameRunning) {
+            if (esc) {
+                initialize();
+                break;
+            }
+            repaint();
+        }
     }
 
     private void printCurrentBag() {
@@ -191,6 +257,19 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         System.out.println("-------------------------");
     }
 
+    void printBoard() {
+        for (int i = 0; i < gameBoard.length; i++) {
+            for (int j = 0; j < gameBoard[0].length; j++) {
+                switch (gameBoard[i][j].state) {
+                    case EMPTY -> System.out.print("[ ]");
+                    case FILLED_LOCKED -> System.out.print("[L]");
+                    case FILLED_SELECTED -> System.out.print("[S]");
+                }
+            }
+            System.out.println();
+        }
+    }
+
     private void initialize() {
         dasCounter = 0;
         arrCounter = 0;
@@ -201,18 +280,16 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         totalLinesCleared = 0;
         score = 0;
         back2backLevel = 0;
-        previousAmountCleared = 0;
+        isB2BEligible = false;
         level = STARTING_LEVEL;
 
         GRAVITY = calculateGravityPerFrame(level, 60);
         softDropSpeed = SDF * GRAVITY;
 
-        System.out.println(GRAVITY);
-
-
         loadSprites();
 
-        initializeBoard();
+
+
 
         currentBagIndex = 0;
         nextQueue = new ArrayList<>();
@@ -231,12 +308,12 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         holdTetromino = null;
         currentTetromino = new Tetromino(sevenBag[0]);
 
-        // FIXME temp var
-        currentTetromino = new Tetromino(Shape.T);
+        initializeBoard();
 
         currentTetromino.insertPieceIntoBoard(gameBoard);
         currentBagIndex++;
 
+        isGameRunning = true;
         last = System.nanoTime();
         Thread t = new Thread(this);
         t.start();
@@ -309,7 +386,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     }
 
-
+    boolean decrementTextOpacity = false;
+    int textShownCounter = 0;
+    int textShownLength = 180;
     @Override
     public void run() {
         while (isGameRunning) {
@@ -324,8 +403,30 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 canHold = true;
             }
 
+            if (wasLineCleared) {
+                lineClearTextDuration = 255;
+                decrementTextOpacity = true;
+                wasLineCleared = false;
+            }
+            if (decrementTextOpacity) {
+                if (textShownCounter == textShownLength) {
+                    if (!(lineClearTextDuration <= 0)) {
+                        lineClearTextDuration -= 10;
+                        if (lineClearTextDuration < 0) {
+                            lineClearTextDuration = 0;
+                        }
+                    } else {
+                        textShownCounter = 0;
+                        decrementTextOpacity = false;
+                    }
+                } else {
+                    textShownCounter++;
+                }
+            }
+
             checkInput();
             lockDelayAction();
+
 
             gravityCounter += GRAVITY;
 
@@ -336,20 +437,13 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
                 repaint();
                 gravityCounter -= cellsToMove;
-
             }
-
-//            if (gravityCounter == GRAVITY) {
-//                gravityCounter = 0;
-//                currentTetromino.moveDown(gameBoard);
-//                repaint();
-//            }
-//            gravityCounter++;
 
             try {
                 Thread.sleep(10);
             } catch (InterruptedException _) {}
         }
+        menuLoop();
     }
 
     // modern tetromino locking
@@ -370,7 +464,15 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             currentTetromino.lockState = 0;
         }
 
-        if (currentTetromino.lockState > lockDelay) {
+        if (currentTetromino.lockState > LOCK_DELAY) {
+            currentTetromino.hardDrop(gameBoard);
+            movementCounter = 0;
+        }
+
+        // if more than 15 inputs after the mino has hit
+        // the floor were pressed, lock the piece
+        // (to prevent infinite movement)
+        if (movementCounter > MAX_MOVEMENTS) {
             currentTetromino.hardDrop(gameBoard);
             movementCounter = 0;
         }
@@ -379,6 +481,12 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     private void clearFilledLine() {
         ArrayList<Integer> linesToClear = getLinesToClear();
         if (linesToClear.isEmpty()) {
+            if (currentTetromino.spinType == Tetromino.TSPIN.T_SPIN) {
+                score += 400 * level;
+            } else if (currentTetromino.spinType == Tetromino.TSPIN.T_SPIN_MINI) {
+                score += 100 * level;
+            }
+            wasLineCleared = false;
             return;
         }
 
@@ -393,23 +501,66 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         int amountLinesCleared = linesToClear.size();
         totalLinesCleared += amountLinesCleared;
+        boolean isAnyB2BMove = false;
+        int scoreToBeAdded = 0;
+        switch (amountLinesCleared) {
+            case 1 -> {
+                if (currentTetromino.spinType == Tetromino.TSPIN.T_SPIN) {
+                    scoreToBeAdded = 800 * level;
+                    isAnyB2BMove = true;
+                    clearType = "T-SPIN SINGLE";
+                    break;
+                } else if (currentTetromino.spinType == Tetromino.TSPIN.T_SPIN_MINI) {
+                    scoreToBeAdded = 200 * level;
+                    isAnyB2BMove = true;
+                    clearType = "Mini T-SPIN single";
+                    break;
+                }
+                scoreToBeAdded = 100 * level;
+                clearType = "SINGLE";
+            }
+            case 2 -> {
+                if (currentTetromino.spinType == Tetromino.TSPIN.T_SPIN) {
+                    scoreToBeAdded = 1200 * level;
+                    isAnyB2BMove = true;
+                    clearType = "T-SPIN DOUBLE";
+                    break;
+                } else if (currentTetromino.spinType == Tetromino.TSPIN.T_SPIN_MINI) {
+                    scoreToBeAdded = 400 * level;
+                    isAnyB2BMove = true;
+                    clearType = "Mini T-SPIN DOUBLE";
+                    break;
+                }
+                scoreToBeAdded = 300 * level;
+                clearType = "DOUBLE";
+            }
+            case 3 -> {
+                if (currentTetromino.spinType == Tetromino.TSPIN.T_SPIN) {
+                    scoreToBeAdded = 1600 * level;
+                    isAnyB2BMove = true;
+                    clearType = "T-SPIN TRIPLE";
+                    break;
+                }
+                scoreToBeAdded = 500 * level;
+                clearType = "TRIPLE";
+            }
+            case 4 -> {
+                scoreToBeAdded = 800 * level;
+                isAnyB2BMove = true;
+                clearType = "TETRIS";
+            }
+        }
+        score += (int) (scoreToBeAdded * (back2backLevel != 0 ? 1.5 : 1));
 
-        if (amountLinesCleared == previousAmountCleared) {
+        if (isAnyB2BMove && isB2BEligible) {
             back2backLevel++;
         } else {
             back2backLevel = 0;
         }
-
-        previousAmountCleared = amountLinesCleared;
-
-        switch (amountLinesCleared) {
-            case 1 -> score += 100 * level;
-            case 2 -> score += 300 * level;
-            case 3 -> score += 500 * level;
-            case 4 -> score += 800 * level;
-        }
+        isB2BEligible = isAnyB2BMove;
 
         int level = (totalLinesCleared/10) + 1;
+
 
         if (level > this.level) {
             this.level = level;
@@ -417,6 +568,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             softDropSpeed = SDF * GRAVITY;
             gravityCounter = 0;
         }
+        wasLineCleared = true;
     }
 
     public double calculateGravity(int level) {
@@ -470,8 +622,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     private void insertNextTetromino() {
         currentTetromino = new Tetromino(sevenBag[currentBagIndex]);
         if (!(currentTetromino.insertPieceIntoBoard(gameBoard))) {
-            System.out.println("Game Over!");
-            isGameRunning = false;
+            gameOver();
         }
 
         currentBagIndex++;
@@ -481,6 +632,44 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             shuffleBag(nextSevenBag);
             currentBagIndex = 0;
             getNextQueue();
+        }
+    }
+
+    private void gameOver() {
+        fillBoardGameOver();
+        String name = JOptionPane.showInputDialog(null, "Gib deine Initialen ein (3 Buchstaben):", "Game Over!", JOptionPane.INFORMATION_MESSAGE);
+        if (name == null) {
+            name = "";
+        }
+        if (name.length() >= 3) {
+            name = name.substring(0, 3).toUpperCase();
+        } else {
+            name = name.toUpperCase();
+        }
+
+
+        leaderboard.add(new PlayerScore(name, score));
+        leaderboard.sort((o1, o2) -> o2.score - o1.score);
+        PlayerScore.saveScore(leaderboard);
+        leaderboard = PlayerScore.readScores();
+        isGameRunning = false;
+        setButtonVisibility(true);
+    }
+
+    private void fillBoardGameOver() {
+        // bottom to top
+        for (int i = BOARD_HEIGHT - 1; i >= 0; i--) {
+            for (int j = 0; j < BOARD_WIDTH; j++) {
+                gameBoard[i][j].state = BlockState.FILLED_LOCKED;
+                Random random = new Random();
+                gameBoard[i][j].sprite = sprites[random.nextInt(7)];
+            }
+            try {
+                Thread.sleep(30);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            repaint();
         }
     }
 
@@ -507,6 +696,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         } else if (!up) {
             pressedOnceUp = false;
         }
+
+
 
 
         if (ctrl && !pressedOnceCtrl) {
@@ -645,14 +836,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         } else if (currentTetromino.hasHitFloorOnce) {
             movementCounter++;
         }
-
-        // if more than 15 inputs after the mino has hit
-        // the floor were pressed, lock the piece
-        // (to prevent infinite movement)
-        if (movementCounter > maxMovements) {
-            currentTetromino.hardDrop(gameBoard);
-            movementCounter = 0;
-        }
     }
 
     private void copyToDisplayedHold() {
@@ -702,6 +885,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     // renders every tile in the game board
     private void drawBoard(Graphics g) {
+        if (gameBoard == null) {
+            return;
+        }
         for (int row = 0; row < gameBoard.length; row++) {
             for (int column = 0; column < gameBoard[row].length; column++) {
                 if (row < 3 && gameBoard[row][column].state == BlockState.EMPTY)  {
@@ -720,59 +906,91 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         fps = ((long) 1e9 )/ delta;
     }
 
+    String clearType;
+
 
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
-        URL url = getClass()
-                .getClassLoader()
-                .getResource(
-                        SPRITE_SHEET_FILE_PATH
-                                .replace(
-                                        "sprite_sheet.png",
-                                        "board.png")
-                );
-        try {
-            assert url != null;
-            g.drawImage(ImageIO.read(url), 0, 0, this);
-        } catch (IOException e) {
-            System.out.println("Error trying to read board.png");
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+        g2d.drawImage(board, 0, 0, this);
+        if (!isGameRunning) {
+            g2d.drawImage(menu, 0, 0, this);
         }
-        Font font = new Font("Verdana", Font.BOLD, 15);
 
-        g.setFont(font);
-        g.setColor(Color.WHITE);
+        Font font = new Font("Verdana", Font.BOLD, 10);
 
-        int x = 10;
-        int y = 12;
-        g.drawString("FPS: " + fps, x, y);
-        g.drawString("Level: " + level, x, y+=20);
-        g.drawString("Score: " + score, x, y+=20);
-        g.drawString("Lines Cleared: " + totalLinesCleared, x, y+=20);
-        g.drawString("B2B: x" + back2backLevel, x, y+=20);
+        g2d.setFont(font);
+        g2d.setColor(Color.WHITE);
 
-//        g.drawString("Movement Counter: " + movementCounter, x, y+=20);
+        int x = 21;
+        int y = 270;
+        //g2d.drawString("FPS: " + fps, 2, 11);
+        font = new Font("Verdana", Font.BOLD, 20);
+        g2d.setFont(font);
+        g2d.drawString("LEVEL " + level, x, y+=20);
 
-//        g.drawString("Gravity: " + GRAVITY, x, y+=20);
-//        g.drawString("Gravity Counter: " + gravityCounter, x, y+=20);
+        g2d.drawString("SCORE ", x, y+=40);
+        g2d.drawString(String.format("%08d" , score), x, y+=20);
 
+        g2d.drawString("LINES ", x, y+=40);
+        g2d.drawString(String.format("%08d" , totalLinesCleared), x, y+=20);
+
+        if (back2backLevel >= 1) {
+            g2d.drawString("B2B x" + back2backLevel, 527, 670);
+        }
+
+        if (!isGameRunning) {
+            x = BOARD_X + 45;
+            y = BOARD_Y+120;
+            font = new Font("Verdana", Font.BOLD, 25);
+            g.setFont(font);
+            g2d.drawString("LEADERBOARD", x, y);
+
+            x = BOARD_X + 12;
+            y += 32;
+            leaderboard.sort((o1, o2) -> o2.score - o1.score);
+            for (int i = 0; i < 5; i++) {
+                String name = i >= leaderboard.size() ? "---" : leaderboard.get(i).name;
+
+                g2d.drawString((i+1) + ".  " + name, x, y);
+                g2d.drawString(i >= leaderboard.size() ? "00000000" : leaderboard.get(i).getScoreAsString(), x + 135, y);
+                y += 32;
+            }
+
+            return;
+        }
+
+
+        if (clearType != null) {
+
+            g2d.setColor(new Color(255, 255, 255, lineClearTextDuration));
+            if (clearType.contains(" ")) {
+                g2d.drawString(clearType.substring(0, 6), 527, 700);
+                g2d.drawString(clearType.substring(7), 527, 720);
+            } else {
+                g2d.drawString(clearType, 527, 700);
+            }
+
+        }
 
         if (hold != null) {
-            drawHold(g);
-
+            drawHold(g2d);
         }
         if (nextQueue != null) {
-            drawNextQueue(g);
-            drawIncomingPiece(g);
+            drawNextQueue(g2d);
+            drawIncomingPiece(g2d);
         }
-        drawGhostPiece(g);
         drawBoard(g);
+        drawGhostPiece(g2d);
         if (currentTetromino.isCurrentlyOnFloor) {
-            drawLockOverlay(g);
+            drawLockOverlay(g2d);
         }
-
-
     }
+    int lineClearTextDuration = 255;
+    boolean wasLineCleared = false;
 
 
     private void drawNextQueue(Graphics g) {
@@ -813,10 +1031,10 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 int yPos = HOLD_Y + i * TILE_SIZE;
 
                 if (holdTetromino.shape == Shape.I) {
-                    xPos = 17 + j * TILE_SIZE;
+                    xPos = 19 + j * TILE_SIZE;
                     yPos = 138 + i * TILE_SIZE;
                 } else if (holdTetromino.shape == Shape.O) {
-                    xPos = 47 + j * TILE_SIZE;
+                    xPos = 49 + j * TILE_SIZE;
                     yPos = 153 + i * TILE_SIZE;
                 }
 
@@ -919,6 +1137,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             case KeyEvent.VK_CONTROL -> ctrl = true;
             case KeyEvent.VK_SHIFT -> shift = true;
             case KeyEvent.VK_SPACE -> space = true;
+            case KeyEvent.VK_ESCAPE -> esc = true;
+
         }
     }
 
@@ -939,6 +1159,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             case KeyEvent.VK_CONTROL -> ctrl = false;
             case KeyEvent.VK_SHIFT -> shift = false;
             case KeyEvent.VK_SPACE -> space = false;
+            case KeyEvent.VK_ESCAPE -> esc = false;
         }
 
 
