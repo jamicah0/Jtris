@@ -76,7 +76,7 @@ import java.util.*;
      * and draw a background image once
  */
 
-
+// TODO: implement classic mode
 
 public class GamePanel extends JPanel implements Runnable, KeyListener {
     enum Direction {
@@ -150,14 +150,22 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     int arrCounter;
     double sdfCounter;
     // standard 9
-    final int DAS = 7;
+    static int DAS = 9;
     // standard 3
-    final int ARR = 1;
+    static int ARR = 3;
     // standard 12, 2000 for instant drop
-    final double SDF = 12;
+    static double SDF = 12;
+
+    // TODO: saving and loading settings
+
+    final static int STANDARD_DAS = 9;
+    final static int STANDARD_ARR = 3;
+    final static double STANDARD_SDF = 12;
+
     double softDropSpeed;
 
     boolean isGameRunning;
+    boolean isPaused;
 
     long delta = 0;
     long last = 0;
@@ -166,6 +174,20 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     private final JButton marathonButton;
     private JButton classicButton = null;
+    private JButton continueButton = null;
+    private JButton standardButton = null;
+
+    private JTextField DASField;
+    private JTextField ARRField;
+    private JTextField SDFField;
+
+    JFrame frame;
+
+    int textFieldX = 280;
+    int textFieldY = 315;
+    int textFieldWidth = 70;
+    int textFieldHeight = 22;
+    int textFieldOffset = 25;
 
     public GamePanel(int width, int height) {
         leaderboard = PlayerScore.readScores();
@@ -174,10 +196,76 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         this.setBackground(Color.GRAY);
         this.setLayout(null);
 
+
+
+        DASField = new JTextField("" + DAS);
+        DASField.setHorizontalAlignment(JTextField.RIGHT);
+        DASField.setFont(new Font("Verdana", Font.BOLD, 18));
+        DASField.setBounds(textFieldX, textFieldY+= textFieldOffset, textFieldWidth, textFieldHeight);
+        DASField.setEditable(true);
+        DASField.setBackground(Color.WHITE);
+        DASField.setVisible(false);
+        this.add(DASField);
+
+        ARRField = new JTextField("" + ARR);
+        ARRField.setHorizontalAlignment(JTextField.RIGHT);
+        ARRField.setFont(new Font("Verdana", Font.BOLD, 18));
+        ARRField.setBounds(textFieldX, textFieldY+= textFieldOffset, textFieldWidth, textFieldHeight);
+        ARRField.setEditable(true);
+        ARRField.setBackground(Color.WHITE);
+        ARRField.setVisible(false);
+        this.add(ARRField);
+
+        SDFField = new JTextField("" + SDF);
+        SDFField.setHorizontalAlignment(JTextField.RIGHT);
+        SDFField.setFont(new Font("Verdana", Font.BOLD, 18));
+        SDFField.setBounds(textFieldX, textFieldY+= textFieldOffset, textFieldWidth, textFieldHeight);
+        SDFField.setEditable(true);
+        SDFField.setBackground(Color.WHITE);
+        SDFField.setVisible(false);
+        this.add(SDFField);
+
+
+
+
+
+        standardButton = new JButton("Standardwerte");
+        standardButton.setFont(new Font("Verdana", Font.BOLD, 18));
+        standardButton.setForeground(Color.BLACK);
+        standardButton.setBackground(Color.WHITE);
+        standardButton.setBounds(225, 415, 200, 24);
+        standardButton.setFocusable(false);
+        standardButton.addActionListener(e -> {
+            DAS = STANDARD_DAS;
+            ARR = STANDARD_ARR;
+            SDF = STANDARD_SDF;
+            DASField.setText("" + DAS);
+            ARRField.setText("" + ARR);
+            SDFField.setText("" + SDF);
+        });
+        standardButton.setVisible(false);
+        this.add(standardButton);
+
+        continueButton = new JButton("Fortsetzen");
+        continueButton.setFont(new Font("Verdana", Font.BOLD, 18));
+        continueButton.setForeground(Color.BLACK);
+        continueButton.setBackground(Color.WHITE);
+        continueButton.setBounds(225, 445, 200, 30);
+        continueButton.setFocusable(false);
+        continueButton.addActionListener(e -> {
+            isPaused = !isPaused;
+            setTextFieldsVisibility(isPaused);
+            useNewValues();
+            frame.requestFocus();
+        });
+        continueButton.setVisible(false);
+        this.add(continueButton);
+
+
         marathonButton = new JButton("Marathon-Modus");
         marathonButton.setFont(new Font("Verdana", Font.BOLD, 18));
-        marathonButton.setForeground(Color.WHITE);
-        marathonButton.setBackground(Color.BLACK);
+        marathonButton.setForeground(Color.BLACK);
+        marathonButton.setBackground(Color.WHITE);
         marathonButton.setBounds(210, 345, 230, 50);
         marathonButton.setFocusable(false);
         marathonButton.addActionListener(e -> {
@@ -192,8 +280,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         classicButton = new JButton("Classic-Modus");
         classicButton.setFont(new Font("Verdana", Font.BOLD, 18));
-        classicButton.setForeground(Color.WHITE);
-        classicButton.setBackground(Color.BLACK);
+        classicButton.setForeground(Color.BLACK);
+        classicButton.setBackground(Color.WHITE);
         classicButton.setBounds(210, 415, 230, 50);
         classicButton.setFocusable(false);
         classicButton.addActionListener(e -> {
@@ -206,7 +294,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         });
         this.add(classicButton);
 
-        JFrame frame = new JFrame("JTris");
+        frame = new JFrame("JTris");
         frame.setLocation(
                 Toolkit.getDefaultToolkit()
                         .getScreenSize()
@@ -218,7 +306,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         frame.addKeyListener(this);
         frame.add(this);
         frame.pack();
-        frame.setVisible(true);
         frame.setResizable(false);
         try {
             board = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites\\board.png")));
@@ -226,7 +313,23 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         } catch (IOException e) {
             System.out.println("Error reading board image");
         }
+        frame.setVisible(true);
         menuLoop();
+    }
+
+    private void useNewValues() {
+        try {
+            DAS = Integer.parseInt(DASField.getText());
+            ARR = Integer.parseInt(ARRField.getText());
+            SDF = Double.parseDouble(SDFField.getText());
+        } catch (NumberFormatException e) {
+            DAS = STANDARD_DAS;
+            ARR = STANDARD_ARR;
+            SDF = STANDARD_SDF;
+        }
+        dasCounter = 0;
+        arrCounter = 0;
+        sdfCounter = 0;
     }
 
     public void setButtonVisibility(boolean isVisible) {
@@ -234,14 +337,22 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         classicButton.setVisible(isVisible);
     }
 
+    public void setTextFieldsVisibility(boolean isVisible) {
+        DASField.setVisible(isVisible);
+        ARRField.setVisible(isVisible);
+        SDFField.setVisible(isVisible);
+        continueButton.setVisible(isVisible);
+        standardButton.setVisible(isVisible);
+    }
 
     private void menuLoop() {
         while (!isGameRunning) {
-            if (esc) {
-                initialize();
-                break;
-            }
             repaint();
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -313,6 +424,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         currentTetromino.insertPieceIntoBoard(gameBoard);
         currentBagIndex++;
 
+        isPaused = false;
         isGameRunning = true;
         last = System.nanoTime();
         Thread t = new Thread(this);
@@ -394,6 +506,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         while (isGameRunning) {
             calculateDelta();
             repaint();
+
+            if (isPaused) {
+                checkInput();
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException _) {}
+                continue;
+            }
 
 
 
@@ -680,11 +800,26 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     boolean pressedOnceRight = false;
     boolean pressedOnceShift = false;
     boolean pressedOnceSpace = false;
+    boolean pressedOnceEsc = false;
 
     boolean canHold = true;
 
     Direction dasDirection = Direction.NONE;
     private void checkInput() {
+
+        if (esc && !pressedOnceEsc) {
+            isPaused = !isPaused;
+            setTextFieldsVisibility(isPaused);
+            pressedOnceEsc = true;
+        } else if (!esc) {
+            pressedOnceEsc = false;
+        }
+
+        if (isPaused) {
+            return;
+        }
+
+
         // rotation
 
         // make sure that the key is only pressed once
@@ -943,11 +1078,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         }
 
         if (!isGameRunning) {
-            x = BOARD_X + 45;
-            y = BOARD_Y+120;
+            x = BOARD_X + 57;
+            y = BOARD_Y+117;
             font = new Font("Verdana", Font.BOLD, 25);
             g.setFont(font);
-            g2d.drawString("LEADERBOARD", x, y);
+            g2d.drawString("BESTENLISTE", x, y);
 
             x = BOARD_X + 12;
             y += 32;
@@ -988,6 +1123,27 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         if (currentTetromino.isCurrentlyOnFloor) {
             drawLockOverlay(g2d);
         }
+        if (isPaused) {
+            x = BOARD_X + 78;
+            y = BOARD_Y+117;
+            font = new Font("Verdana", Font.BOLD, 25);
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(font);
+            g2d.drawImage(menu, 0, 0, this);
+            g2d.drawString("PAUSIERT", x, y);
+            font = new Font("Verdana", Font.BOLD, 17);
+            g2d.setFont(font);
+            // DAS, same height as the other text fields
+            textFieldY = 357;
+            g2d.drawString("DAS: ", textFieldX - 56, textFieldY);
+            g2d.drawString("Frames", textFieldX + textFieldWidth + 3, textFieldY);
+            g2d.drawString("ARR: ", textFieldX - 56, textFieldY + textFieldOffset);
+            g2d.drawString("Frames", textFieldX + textFieldWidth + 3, textFieldY + textFieldOffset);
+            g2d.drawString("SDF: ", textFieldX - 56, textFieldY + textFieldOffset * 2);
+            g2d.drawString("x", textFieldX + textFieldWidth + 3, textFieldY + textFieldOffset * 2);
+
+        }
+
     }
     int lineClearTextDuration = 255;
     boolean wasLineCleared = false;
