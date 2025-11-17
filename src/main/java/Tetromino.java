@@ -1,3 +1,5 @@
+package main.java;
+
 import java.util.List;
 
 public class Tetromino {
@@ -7,7 +9,6 @@ public class Tetromino {
         NONE
     }
     public static final int TOTAL_ROTATION_STATES = 4;
-    // tetr.io = 0; jstris = 2; tetris.com = 3
     public static int INITIAL_Y = 0;
     public static final int INITIAL_X = 3;
     Tile[][] tiles;
@@ -29,7 +30,7 @@ public class Tetromino {
         lockState = 0;
         spinType = TSPIN.NONE;
         switch (shape) {
-            case I -> {
+            case I:
                 if (GamePanel.classicMode) {
                     tiles = convertToTiles(RotationNRS.IRotation[0], shape);
                 } else {
@@ -37,13 +38,13 @@ public class Tetromino {
                 }
                 if (GamePanel.classicMode) {
                     INITIAL_Y = 1;
+                } else {
+                    INITIAL_Y = 0;
                 }
-
-
                 x = INITIAL_X;
                 y = INITIAL_Y;
-            }
-            case J -> {
+                break;
+            case J:
                 if (GamePanel.classicMode) {
                     tiles = convertToTiles(RotationNRS.JRotation[0], shape);
                 } else {
@@ -51,12 +52,13 @@ public class Tetromino {
                 }
                 if (GamePanel.classicMode) {
                     INITIAL_Y = 2;
+                } else {
+                    INITIAL_Y = 0;
                 }
-
                 x = INITIAL_X;
                 y = INITIAL_Y;
-            }
-            case L -> {
+                break;
+            case L:
                 if (GamePanel.classicMode) {
                     tiles = convertToTiles(RotationNRS.LRotation[0], shape);
                 } else {
@@ -64,20 +66,26 @@ public class Tetromino {
                 }
                 if (GamePanel.classicMode) {
                     INITIAL_Y = 2;
+                } else {
+                    INITIAL_Y = 0;
                 }
                 x = INITIAL_X;
                 y = INITIAL_Y;
-            }
-            case O -> {
+                break;
+            case O:
                 int[][] initialO = {
                         {1, 1},
                         {1, 1}
                 };
                 tiles = convertToTiles(initialO, shape);
                 x = INITIAL_X + 1;
-                y = INITIAL_Y + (GamePanel.classicMode ? 3 : 0);
-            }
-            case S -> {
+                if (GamePanel.classicMode) {
+                    y = 3;
+                } else {
+                    y = INITIAL_Y;
+                }
+                break;
+            case S:
                 if (GamePanel.classicMode) {
                     tiles = convertToTiles(RotationNRS.SRotation[0], shape);
                 } else {
@@ -85,11 +93,13 @@ public class Tetromino {
                 }
                 if (GamePanel.classicMode) {
                     INITIAL_Y = 2;
+                } else {
+                    INITIAL_Y = 0;
                 }
                 x = INITIAL_X;
                 y = INITIAL_Y;
-            }
-            case T -> {
+                break;
+            case T:
                 if (GamePanel.classicMode) {
                     tiles = convertToTiles(RotationNRS.TRotation[0], shape);
                 } else {
@@ -97,11 +107,13 @@ public class Tetromino {
                 }
                 if (GamePanel.classicMode) {
                     INITIAL_Y = 2;
+                } else {
+                    INITIAL_Y = 0;
                 }
                 x = INITIAL_X;
                 y = INITIAL_Y;
-            }
-            case Z -> {
+                break;
+            case Z:
                 if (GamePanel.classicMode) {
                     tiles = convertToTiles(RotationNRS.ZRotation[0], shape);
                 } else {
@@ -109,16 +121,15 @@ public class Tetromino {
                 }
                 if (GamePanel.classicMode) {
                     INITIAL_Y = 2;
+                } else {
+                    INITIAL_Y = 0;
                 }
                 x = INITIAL_X;
                 y = INITIAL_Y;
-            }
+                break;
         }
-
     }
 
-    // 2d integer array to 2d Tile array
-    // 0 -> EMPTY; 1 -> FILLED_SELECTED
     private Tile[][] convertToTiles(int[][] initial, Shape shape) {
         Tile[][] tiles = new Tile[initial.length][initial[0].length];
         for (int i = 0; i < initial.length; i++) {
@@ -142,14 +153,12 @@ public class Tetromino {
                     } else {
                         gameBoard[y + i][x + j] = tiles[i][j];
                     }
-
                 }
             }
         }
         return true;
     }
 
-    // set a tile to EMPTY
     public void deleteTileOnBoard(int x, int y, Tile[][] gameBoard) {
         gameBoard[y][x] = new Tile(BlockState.EMPTY, Shape.EMPTY);
     }
@@ -162,19 +171,6 @@ public class Tetromino {
                 }
             }
         }
-
-        /*
-        for (Tile[] tile : gameBoard) {
-            for (int j = 0; j < gameBoard[0].length; j++) {
-                if (tile[j].state == BlockState.FILLED_SELECTED) {
-                    tile[j].state = BlockState.EMPTY;
-                }
-            }
-        }
-
-         */
-
-
         isLocked = true;
     }
 
@@ -190,11 +186,10 @@ public class Tetromino {
     }
 
     public void moveDown(Tile[][] gameBoard, int amount) {
-
         int foo = 1;
         while (true) {
             if (isAtTheBottom(gameBoard, foo)) {
-                amount = foo-1;
+                amount = foo - 1;
                 break;
             }
             if (foo == amount) {
@@ -202,11 +197,8 @@ public class Tetromino {
             }
             foo++;
         }
-
         deleteCurrentTetromino(gameBoard);
-
         y += amount;
-
         insertPieceIntoBoard(gameBoard);
     }
 
@@ -214,8 +206,6 @@ public class Tetromino {
         for (int i = 0; i < tiles.length; i++) {
             for (int j = 0; j < tiles[0].length; j++) {
                 if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    // check if the piece is at the bottom of the board
-                    // or if there is a locked piece below it
                     if (y + i + amount >= gameBoard.length || gameBoard[y + i + amount][x + j].state == BlockState.FILLED_LOCKED) {
                         return true;
                     }
@@ -232,8 +222,6 @@ public class Tetromino {
                 for (int j = 0; j < tiles[0].length; j++) {
                     if (tiles[i][j].state == BlockState.FILLED_SELECTED || tiles[i][j].state == BlockState.FILLED_LOCKED) {
                         int newY = ghostY + i + 1;
-                        // make sure gameBoard[newY][x + j] is not out of bounds
-
                         try {
                             if (newY >= gameBoard.length || gameBoard[newY][x + j].state == BlockState.FILLED_LOCKED) {
                                 return ghostY;
@@ -257,26 +245,17 @@ public class Tetromino {
     }
 
     public void moveRight(Tile[][] gameBoard) {
-
-        // check if there is a wall
         if (hasHitRightWall(gameBoard)) return;
-
-        // delete the previous piece from the board
         deleteCurrentTetromino(gameBoard);
-
         x++;
-
         insertPieceIntoBoard(gameBoard);
-
     }
 
     public boolean hasHitRightWall(Tile[][] gameBoard) {
         for (int i = 0; i < tiles.length; i++) {
             for (int j = 0; j < tiles[0].length; j++) {
                 if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    // check if the piece is at the right wall of the board
-                    // or if there is a piece next right to it
-                    if (x + j + 1 >= gameBoard[0].length || gameBoard[y + i][x + j+1].state == BlockState.FILLED_LOCKED) {
+                    if (x + j + 1 >= gameBoard[0].length || gameBoard[y + i][x + j + 1].state == BlockState.FILLED_LOCKED) {
                         return true;
                     }
                 }
@@ -286,24 +265,16 @@ public class Tetromino {
     }
 
     public void moveLeft(Tile[][] gameBoard) {
-        // check if there is a wall
         if (hasHitLeftWall(gameBoard)) return;
-
-        // delete the previous piece from the board
         deleteCurrentTetromino(gameBoard);
-
         x--;
-
         insertPieceIntoBoard(gameBoard);
-
     }
 
     public boolean hasHitLeftWall(Tile[][] gameBoard) {
         for (int i = 0; i < tiles.length; i++) {
             for (int j = 0; j < tiles[0].length; j++) {
                 if (tiles[i][j].state == BlockState.FILLED_SELECTED) {
-                    // check if the piece is at the right wall of the board
-                    // or if there is a piece next right to it
                     try {
                         if (x + j - 1 >= gameBoard[0].length || gameBoard[y + i][x + j - 1].state == BlockState.FILLED_LOCKED) {
                             return true;
@@ -311,13 +282,11 @@ public class Tetromino {
                     } catch (ArrayIndexOutOfBoundsException e) {
                         return true;
                     }
-
                 }
             }
         }
         return false;
     }
-
 
     private boolean canRotateOrKick(Tile[][] gameBoard, int[][] nextRotation, boolean clockwise) {
         int nextState = (rotationIndex + (clockwise ? 1 : -1) + TOTAL_ROTATION_STATES) % TOTAL_ROTATION_STATES;
@@ -370,7 +339,6 @@ public class Tetromino {
             }
         }
 
-
         if (canRotateOrKick(gameBoard, nextRotation, true)) {
             rotationIndex = nextRotationIndex;
             assert nextRotation != null;
@@ -389,11 +357,10 @@ public class Tetromino {
         int tilesAround = 0;
         boolean isTSpinEligible = false;
 
-
         switch (rotationIndex) {
-            case 0 -> {
-                for (int i = 0; i < 3; i+=2) {
-                    if (gameBoard[y][x+i].state == BlockState.FILLED_LOCKED) {
+            case 0:
+                for (int i = 0; i < 3; i += 2) {
+                    if (gameBoard[y][x + i].state == BlockState.FILLED_LOCKED) {
                         tilesAround++;
                     }
                 }
@@ -407,11 +374,10 @@ public class Tetromino {
                         break;
                     }
                 }
-
-            }
-            case 1 -> {
-                for (int i = 0; i < 3; i+=2) {
-                    if (gameBoard[y + i][x+2].state == BlockState.FILLED_LOCKED) {
+                break;
+            case 1:
+                for (int i = 0; i < 3; i += 2) {
+                    if (gameBoard[y + i][x + 2].state == BlockState.FILLED_LOCKED) {
                         tilesAround++;
                     }
                 }
@@ -425,9 +391,9 @@ public class Tetromino {
                         break;
                     }
                 }
-            }
-            case 2 -> {
-                for (int i = 0; i < 3; i+=2) {
+                break;
+            case 2:
+                for (int i = 0; i < 3; i += 2) {
                     if (gameBoard[y + 2][x + i].state == BlockState.FILLED_LOCKED) {
                         tilesAround++;
                     }
@@ -442,9 +408,9 @@ public class Tetromino {
                         break;
                     }
                 }
-            }
-            case 3 -> {
-                for (int i = 0; i < 3; i+=2) {
+                break;
+            case 3:
+                for (int i = 0; i < 3; i += 2) {
                     if (gameBoard[y + i][x].state == BlockState.FILLED_LOCKED) {
                         tilesAround++;
                     }
@@ -459,7 +425,7 @@ public class Tetromino {
                         break;
                     }
                 }
-            }
+                break;
         }
 
         if (tilesAround >= 2 && isTSpinEligible) {
@@ -470,7 +436,6 @@ public class Tetromino {
             spinType = TSPIN.NONE;
         }
     }
-
 
     public void rotateCounterClockwise(Tile[][] gameBoard) {
         if (shape == Shape.O) {
@@ -496,5 +461,4 @@ public class Tetromino {
         }
         GamePanel.playSound("spin.wav");
     }
-
 }

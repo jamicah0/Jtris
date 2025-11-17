@@ -1,3 +1,5 @@
+package main.java;
+
 public class RotationNRS {
     public static int[][][] IRotation =
             {
@@ -158,30 +160,22 @@ public class RotationNRS {
 
     public static int[][] getRotation(Shape shape, int index) {
         switch (shape) {
-            case I -> {
+            case I:
                 return IRotation[index];
-            }
-            case J -> {
+            case J:
                 return JRotation[index];
-            }
-            case L -> {
+            case L:
                 return LRotation[index];
-            }
-            case S -> {
+            case S:
                 return SRotation[index];
-            }
-            case Z -> {
+            case Z:
                 return ZRotation[index];
-            }
-            case T -> {
+            case T:
                 return TRotation[index];
-            }
-            case O -> {
+            case O:
                 return ORotation[index];
-            }
-            default -> {
+            default:
                 return null;
-            }
         }
     }
 

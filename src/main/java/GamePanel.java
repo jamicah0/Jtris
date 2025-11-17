@@ -1,3 +1,5 @@
+package main.java;
+
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -41,7 +43,7 @@ import java.util.*;
     * ghost piece                       (x)
     * soft drop                         (x)
     * leveling with clearing lines      (x)
-    * game over on top out
+    * game over on top out              (x)
 
     TO-DO:
     * create a game loop                (x)
@@ -64,7 +66,7 @@ import java.util.*;
     * correct b2b scores                (x)
     * main menu                         (x)
     * game over                         (x)
-    * classic mode
+    * classic mode                      (x)
  */
 
 /*
@@ -76,12 +78,9 @@ import java.util.*;
      * to remove a piece from the board, we set the block state of the tile to EMPTY using removePieceFromBoard()
 
 
-     * if this rendering method is too slow, we can try to only render the tiles that are FILLED
+     * if this rendering method is too slow, try to only render the tiles that are FILLED
      * and draw a background image once
  */
-
-// TODO: implement classic mode: correct locking, gravity; start timer; tooltips
-// FIXME: recalculate sdf after changing it
 
 public class GamePanel extends JPanel implements Runnable, KeyListener {
     enum Direction {
@@ -97,24 +96,23 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     final static int HOLD_X = 32;
     final static int HOLD_Y = 153;
     final static int NEXT_QUEUE_X = 526;
-    final static int NEXT_QUEUE_Y = 168;
+    static int NEXT_QUEUE_Y = 168;
 
     // ghost piece opacity, 24 ... 255
     public static final int GHOST_OPACITY = 80;
-    public static final String SPRITE_SHEET_FILE_PATH = "Sprites\\sprite_sheet.png";
+    public static final String SPRITE_SHEET_FILE_PATH = "Sprites/sprite_sheet.png";
 
     Shape[] bag;
     Shape[] nextBag;
     ArrayList<Shape> nextQueue;
 
     ArrayList<PlayerScore> leaderboard;
-    PlayerScore currentPlayer;
 
     static boolean classicMode;
 
     int score;
     int back2backLevel;
-    final int STARTING_LEVEL = 1;
+    final int STARTING_LEVEL = 7;
     int level;
     int totalLinesCleared;
     boolean isB2BEligible;
@@ -181,8 +179,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     private final JButton marathonButton;
     private JButton classicButton = null;
-    private JButton continueButton = null;
-    private JButton standardButton = null;
+    private JButton continueButton;
+    private JButton standardButton;
+    private JButton endGameButton;
 
     private final JTextField DASField;
     private final JTextField ARRField;
@@ -197,6 +196,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     int textFieldOffset = 25;
 
     public GamePanel(int width, int height) {
+        try {
+            UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");
+        } catch (Exception e) {
+            System.out.println();
+        }
         leaderboard = PlayerScore.readScores();
         isGameRunning = false;
         this.setPreferredSize(new Dimension(width, height));
@@ -236,8 +240,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
 
 
-
-
         standardButton = new JButton("Standardwerte");
         standardButton.setFont(new Font("Verdana", Font.BOLD, 18));
         standardButton.setForeground(Color.BLACK);
@@ -254,6 +256,23 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         });
         standardButton.setVisible(false);
         this.add(standardButton);
+
+        endGameButton = new JButton("Spiel beenden");
+        endGameButton.setFont(new Font("Verdana", Font.BOLD, 18));
+        endGameButton.setForeground(Color.BLACK);
+        endGameButton.setBackground(Color.WHITE);
+        endGameButton.setBounds(225, 690, 200, 24);
+        endGameButton.setFocusable(false);
+        endGameButton.addActionListener(e -> {
+            if (JOptionPane.showConfirmDialog(null, "Soll das Spiel beendet werden? Die Punktzahl wird nicht gespeichert.", "Spiel beenden", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                isPaused = !isPaused;
+                setTextFieldsVisibility(isPaused);
+                endGame();
+            }
+
+        });
+        endGameButton.setVisible(false);
+        this.add(endGameButton);
 
         continueButton = new JButton("Fortsetzen");
         continueButton.setFont(new Font("Verdana", Font.BOLD, 18));
@@ -311,12 +330,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 Toolkit.getDefaultToolkit()
                         .getScreenSize()
                         .width / 2 - width / 2,
-                0
+                Toolkit.getDefaultToolkit()
+                        .getScreenSize()
+                        .height / 2 - height / 2
         );
 
         try {
-            frame.setIconImage(ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites\\icon.png"))));
-        } catch (IOException e) {
+            frame.setIconImage(ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites/icon.png"))));
+        } catch (Exception e) {
             System.out.println("Error reading icon image");
         }
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -325,9 +346,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         frame.pack();
         frame.setResizable(false);
         try {
-            board = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites\\board.png")));
-            menu = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites\\menu.png")));
-        } catch (IOException e) {
+            board = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites/board.png")));
+            menu = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites/menu.png")));
+        } catch (Exception e) {
             System.out.println("Error reading board image");
         }
         frame.setVisible(true);
@@ -344,11 +365,13 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             if (ARR < 0 || ARR == 0) {
                 ARR = 1;
             }
-            SDF = Double.parseDouble(SDFField.getText());
-            if (SDF < 0 || SDF == 0) {
-                SDF = 1;
+            if (!classicMode) {
+                SDF = Double.parseDouble(SDFField.getText());
+                if (SDF < 0 || SDF == 0) {
+                    SDF = 1;
+                }
+                softDropSpeed = SDF * GRAVITY;
             }
-            softDropSpeed = SDF * GRAVITY;
         } catch (NumberFormatException e) {
             DAS = STANDARD_DAS;
             ARR = STANDARD_ARR;
@@ -365,10 +388,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
     public void setTextFieldsVisibility(boolean isVisible) {
+        continueButton.setVisible(isVisible);
+        endGameButton.setVisible(isVisible);
+        if (classicMode) {
+            return;
+        }
         DASField.setVisible(isVisible);
         ARRField.setVisible(isVisible);
         SDFField.setVisible(isVisible);
-        continueButton.setVisible(isVisible);
         standardButton.setVisible(isVisible);
     }
 
@@ -391,7 +418,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 try {
                     Clip clip = AudioSystem.getClip();
                     AudioInputStream inputStream = AudioSystem.getAudioInputStream(
-                            Objects.requireNonNull(getClass().getClassLoader().getResource("SFX\\" + url)));
+                            Objects.requireNonNull(getClass().getClassLoader().getResource("SFX/" + url)));
                     clip.open(inputStream);
                     clip.start();
                 } catch (Exception e) {
@@ -414,12 +441,18 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     }
 
     void printBoard() {
-        for (int i = 0; i < gameBoard.length; i++) {
+        for (Tile[] tiles : gameBoard) {
             for (int j = 0; j < gameBoard[0].length; j++) {
-                switch (gameBoard[i][j].state) {
-                    case EMPTY -> System.out.print("[ ]");
-                    case FILLED_LOCKED -> System.out.print("[L]");
-                    case FILLED_SELECTED -> System.out.print("[S]");
+                switch (tiles[j].state) {
+                    case EMPTY:
+                        System.out.print("[ ]");
+                        break;
+                    case FILLED_LOCKED:
+                        System.out.print("[L]");
+                        break;
+                    case FILLED_SELECTED:
+                        System.out.print("[S]");
+                        break;
                 }
             }
             System.out.println();
@@ -428,18 +461,21 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     private void initialize() {
         if (classicMode) {
-
+            NEXT_QUEUE_Y = 138;
             AMOUNT_NEXT_PIECES = 1;
             try {
-                holdDisabled = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites\\holdDisabled.png")));
+                holdDisabled = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResource("Sprites/holdDisabled.png")));
             } catch (IOException e) {
                 System.out.println("Error reading holdDisabled image");
             }
             classicGravity = NESLeveling.LEVEL_GRAVITY_TABLE.get(STARTING_LEVEL);
             SDF = classicGravity/8;
+            DAS = 9;
+            ARR = 3;
 
         } else {
             AMOUNT_NEXT_PIECES = 5;
+            NEXT_QUEUE_Y = 168;
         }
         dasCounter = 0;
         arrCounter = 0;
@@ -539,7 +575,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 gameBoard[row][column] = new Tile(BlockState.EMPTY, Shape.EMPTY);
             }
         }
-        URL url = getClass().getClassLoader().getResource("Sprites\\garbage.png");
+        URL url = getClass().getClassLoader().getResource("Sprites/garbage.png");
         BufferedImage img = null;
         try {
             assert url != null;
@@ -632,7 +668,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 if (gravityCounter >= classicGravity && !down) {
                     if (currentTetromino.isCurrentlyOnFloor) {
                         currentTetromino.lockPiece(gameBoard);
-                        playSound("droplock.wav");
                     }
                     currentTetromino.moveDown(gameBoard, 1);
                     gravityCounter = 0;
@@ -706,22 +741,22 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             repaint();
             try {
                 Thread.sleep(classicMode ? 25 : 17);
-            } catch (InterruptedException e) {
-            }
+            } catch (InterruptedException ignored) {}
 
         }
 
-        for (int i = 0; i < linesToClear.size(); i++) {
-            moveTilesDown(Collections.max(linesToClear));
+        for (Integer i : linesToClear) {
+            moveTilesDown(i);
         }
+
 
 
 
 
 
 //        for (int clearIndex : linesToClear) {
-//            for (Tile tile : gameBoard[clearIndex]) {
-//                tile.state = BlockState.EMPTY;
+//            for (main.java.Tile tile : gameBoard[clearIndex]) {
+//                tile.state = main.java.BlockState.EMPTY;
 //                tile.sprite = null;
 //                repaint();
 //                try {
@@ -737,7 +772,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         boolean isAnyB2BMove = false;
         int scoreToBeAdded = 0;
         switch (amountLinesCleared) {
-            case 1 -> {
+            case 1:
                 if (currentTetromino.spinType == Tetromino.TSPIN.T_SPIN) {
                     scoreToBeAdded = 800 * level;
                     isAnyB2BMove = true;
@@ -751,8 +786,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 }
                 scoreToBeAdded = 100 * level;
                 clearType = "SINGLE";
-            }
-            case 2 -> {
+                break;
+            case 2:
                 if (currentTetromino.spinType == Tetromino.TSPIN.T_SPIN) {
                     scoreToBeAdded = 1200 * level;
                     isAnyB2BMove = true;
@@ -766,8 +801,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 }
                 scoreToBeAdded = 300 * level;
                 clearType = "DOUBLE";
-            }
-            case 3 -> {
+                break;
+            case 3:
                 if (currentTetromino.spinType == Tetromino.TSPIN.T_SPIN) {
                     scoreToBeAdded = 1600 * level;
                     isAnyB2BMove = true;
@@ -776,13 +811,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 }
                 scoreToBeAdded = 500 * level;
                 clearType = "TRIPLE";
-            }
-            case 4 -> {
+                break;
+            case 4:
                 scoreToBeAdded = 800 * level;
                 isAnyB2BMove = true;
                 clearType = "TETRIS";
-            }
+                break;
         }
+        textShownCounter = 0;
         score += (int) (scoreToBeAdded * (back2backLevel != 0 ? 1.5 : 1));
 
         if (isAnyB2BMove && isB2BEligible) {
@@ -806,7 +842,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             if (level > 29) {
                 level = 29;
             }
-            SDF = classicGravity/4;
+            SDF = classicGravity/8;
             classicGravity = NESLeveling.LEVEL_GRAVITY_TABLE.get(level);
             gravityCounter = 0;
         }
@@ -874,7 +910,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             playSound("gameover.wav");
             try {
                 Thread.sleep(1000);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException ignored) {
             }
             gameOver();
         }
@@ -906,10 +942,15 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         leaderboard.sort((o1, o2) -> o2.score - o1.score);
         PlayerScore.saveScore(leaderboard);
         leaderboard = PlayerScore.readScores();
+        endGame();
+    }
+
+    private void endGame() {
         isGameRunning = false;
         hold = null;
         setButtonVisibility(true);
     }
+
 
     private void fillBoardGameOver() {
         // bottom to top
@@ -1065,7 +1106,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 if (sdfCounter > SDF) {
                     if (currentTetromino.isCurrentlyOnFloor) {
                         currentTetromino.lockPiece(gameBoard);
-                        playSound("droplock.wav");
                     }
                     currentTetromino.moveDown(gameBoard, 1);
                     sdfCounter = 0;
@@ -1253,9 +1293,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             return;
         }
 
-        if (classicMode) {
-            g2d.drawImage(holdDisabled, 0, 0, this);
-        }
+
 
         if (clearType != null) {
 
@@ -1299,13 +1337,18 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             g2d.setFont(font);
             // DAS, same height as the other text fields
             textFieldY = 357;
-            g2d.drawString("DAS: ", textFieldX - 56, textFieldY);
-            g2d.drawString("Frames", textFieldX + textFieldWidth + 3, textFieldY);
-            g2d.drawString("ARR: ", textFieldX - 56, textFieldY + textFieldOffset);
-            g2d.drawString("Frames", textFieldX + textFieldWidth + 3, textFieldY + textFieldOffset);
-            g2d.drawString("SDF: ", textFieldX - 56, textFieldY + textFieldOffset * 2);
-            g2d.drawString(classicMode ? "Frames" : "x", textFieldX + textFieldWidth + 3, textFieldY + textFieldOffset * 2);
+            if (!classicMode) {
+                g2d.drawString("DAS: ", textFieldX - 56, textFieldY);
+                g2d.drawString("Frames", textFieldX + textFieldWidth + 3, textFieldY);
+                g2d.drawString("ARR: ", textFieldX - 56, textFieldY + textFieldOffset);
+                g2d.drawString("Frames", textFieldX + textFieldWidth + 3, textFieldY + textFieldOffset);
+                g2d.drawString("SDF: ", textFieldX - 56, textFieldY + textFieldOffset * 2);
+                g2d.drawString("Frames", textFieldX + textFieldWidth + 3, textFieldY + textFieldOffset * 2);
+            }
 
+        }
+        if (classicMode) {
+            g2d.drawImage(holdDisabled, 0, 0, this);
         }
 
     }
@@ -1316,7 +1359,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     private void drawNextQueue(Graphics g) {
         int xPos, yPos;
         for (int i = currentBagIndex; i < currentBagIndex + AMOUNT_NEXT_PIECES; i++) {
-            int[][] temp = RotationSRS.getRotation(nextQueue.get(i), 0);
+            int[][] temp = classicMode ? RotationNRS.getRotation(nextQueue.get(i), 0) : RotationSRS.getRotation(nextQueue.get(i), 0);
             assert temp != null;
             Tile[][] piece = convertToTiles(temp, nextQueue.get(i));
 
@@ -1327,7 +1370,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                         yPos = ((i - currentBagIndex) * TILE_SIZE * 3) - (TILE_SIZE/2)  + NEXT_QUEUE_Y + y * TILE_SIZE;
                     } else if (nextQueue.get(i) == Shape.O) {
                         xPos = NEXT_QUEUE_X+(TILE_SIZE/2) + x * TILE_SIZE;
-                        yPos = ((i - currentBagIndex) * TILE_SIZE * 3) + NEXT_QUEUE_Y + y * TILE_SIZE;
+                        yPos = ((i - currentBagIndex) * TILE_SIZE * 3) + NEXT_QUEUE_Y + (classicMode ? 30 : 0)+ y * TILE_SIZE;
                     } else {
                         xPos = NEXT_QUEUE_X + x * TILE_SIZE;
                         yPos = ((i - currentBagIndex) * TILE_SIZE * 3) + NEXT_QUEUE_Y + y * TILE_SIZE;
@@ -1450,15 +1493,30 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     @Override
     public void keyPressed(KeyEvent e) {
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_UP -> up = true;
-            case KeyEvent.VK_DOWN -> down = true;
-            case KeyEvent.VK_LEFT -> left = true;
-            case KeyEvent.VK_RIGHT -> right = true;
-            case KeyEvent.VK_CONTROL -> ctrl = true;
-            case KeyEvent.VK_SHIFT -> shift = true;
-            case KeyEvent.VK_SPACE -> space = true;
-            case KeyEvent.VK_ESCAPE -> esc = true;
-
+            case KeyEvent.VK_UP:
+                up = true;
+                break;
+            case KeyEvent.VK_DOWN:
+                down = true;
+                break;
+            case KeyEvent.VK_LEFT:
+                left = true;
+                break;
+            case KeyEvent.VK_RIGHT:
+                right = true;
+                break;
+            case KeyEvent.VK_CONTROL:
+                ctrl = true;
+                break;
+            case KeyEvent.VK_SHIFT:
+                shift = true;
+                break;
+            case KeyEvent.VK_SPACE:
+                space = true;
+                break;
+            case KeyEvent.VK_ESCAPE:
+                esc = true;
+                break;
         }
     }
 
@@ -1472,14 +1530,30 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     @Override
     public void keyReleased(KeyEvent e) {
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_UP -> up = false;
-            case KeyEvent.VK_DOWN -> down = false;
-            case KeyEvent.VK_LEFT -> left = false;
-            case KeyEvent.VK_RIGHT -> right = false;
-            case KeyEvent.VK_CONTROL -> ctrl = false;
-            case KeyEvent.VK_SHIFT -> shift = false;
-            case KeyEvent.VK_SPACE -> space = false;
-            case KeyEvent.VK_ESCAPE -> esc = false;
+            case KeyEvent.VK_UP:
+                up = false;
+                break;
+            case KeyEvent.VK_DOWN:
+                down = false;
+                break;
+            case KeyEvent.VK_LEFT:
+                left = false;
+                break;
+            case KeyEvent.VK_RIGHT:
+                right = false;
+                break;
+            case KeyEvent.VK_CONTROL:
+                ctrl = false;
+                break;
+            case KeyEvent.VK_SHIFT:
+                shift = false;
+                break;
+            case KeyEvent.VK_SPACE:
+                space = false;
+                break;
+            case KeyEvent.VK_ESCAPE:
+                esc = false;
+                break;
         }
 
 

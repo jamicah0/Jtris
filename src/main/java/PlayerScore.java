@@ -1,6 +1,6 @@
-import java.awt.image.BufferedImage;
+package main.java;
+
 import java.io.*;
-import java.lang.reflect.Array;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.ArrayList;

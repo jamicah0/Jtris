@@ -1,3 +1,5 @@
+package main.java;
+
 public enum BlockState {
     EMPTY,
     FILLED_SELECTED,
