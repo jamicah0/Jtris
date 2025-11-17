@@ -112,7 +112,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
     int score;
     int back2backLevel;
-    final int STARTING_LEVEL = 7;
+    final int STARTING_LEVEL = 1;
     int level;
     int totalLinesCleared;
     boolean isB2BEligible;
